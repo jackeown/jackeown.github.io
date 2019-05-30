@@ -44,11 +44,8 @@ os.system(f"""jupyter nbconvert {notebook} --config jekyll.py --output {outFileN
 
 # copy files to jekyll _posts and images.
 # but first make sure a previous version isn't already there...
-try:
-    os.system(f"""rm -rf ../jekyllSite/assets/images/{outFileName.split('.')[-2]}_files""")
-    print("updated/removed old stuff")
-except:
-    print("no old stuff")
 
-os.system(f"""mv {outFileName} ../jekyllSite/_posts/""")
-os.system(f"""mv {outFileName.split('.')[-2]}_files ../jekyllSite/assets/images/""")
+os.system(f"""rm -rf ../assets/images/{outFileName.split('.')[-2]}_files""")
+
+os.system(f"""mv {outFileName} ../_posts/""")
+os.system(f"""mv {outFileName.split('.')[-2]}_files ../assets/images/""")
