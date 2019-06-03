@@ -7,6 +7,14 @@ title: Playing Around with D3.js
 <script src="https://d3js.org/d3.v4.js"></script>
 
 <script>
+    // d for domain, r for range...
+    function linearScale(d1,d2, r1, r2){
+        function scale(x){
+            let z = (x-d1)/(d2-d1)
+            return z*(r2-r1) + r1;
+        }
+        return scale;
+    }
 
     class LinePlot extends HTMLElement {
         static observedAttributes = ['data'];
@@ -18,15 +26,35 @@ title: Playing Around with D3.js
             // Set up canvas 
             this.shadow = this.attachShadow({mode: 'open'});
             this.canvas = document.createElement("canvas");
-            this.canvas.setAttribute("style","border:1px black solid;width:100%;height:100%;");
+            this.canvas.setAttribute("style","background-color:rgb(240,240,250);box-shadow:0px 0px 10px -3px black;width:100%;height:100%;");
             this.ctx = this.canvas.getContext("2d");
             this.shadow.appendChild(this.canvas);
-            this.dpiInterval = setInterval(this.fixDPI.bind(this), 500);
-            setTimeout(this.renderPlot.bind(this), 1000);
+            
+
+            this.DPISet = false;
+            this.dpiInterval = setInterval(this.fixDPI.bind(this), 200);
+            setTimeout(this.fixDPI.bind(this), 20);
+
+            // config
+            this.padding = 30;
         }
 
         attributeChangedCallback(name, oldValue, newValue) {
             console.log("custom element attribute changed!");
+            if(name === "data"){
+                this.data = JSON.parse(this.getAttribute('data'));
+                
+                if(this.data == null){
+                    this.xmin = this.xmax = this.ymin = this.ymax = null;
+                    this.scaleX = this.scaleY = null;
+                    return
+                }
+    
+                this.xmin = Math.min(...this.data.xs);
+                this.xmax = Math.max(...this.data.xs);
+                this.ymin = Math.min(...this.data.ys);
+                this.ymax = Math.max(...this.data.ys);
+            }
             this.renderPlot();
         }
 
@@ -38,46 +66,72 @@ title: Playing Around with D3.js
             let style_width = +getComputedStyle(this.canvas).getPropertyValue("width").slice(0, -2);
 
             //scale the canvas
-            if(this.canvas.getAttribute('height') != style_height*window.devicePixelRatio ||
-               this.canvas.getAttribute('width')  != style_width*window.devicePixelRatio ){
-                this.canvas.setAttribute('height', style_height * window.devicePixelRatio);
-                this.canvas.setAttribute('width', style_width * window.devicePixelRatio);
+            if(this.canvas.height != style_height*window.devicePixelRatio ||
+               this.canvas.width  != style_width*window.devicePixelRatio ){
+
+                this.canvas.height = style_height * window.devicePixelRatio;
+                this.canvas.width = style_width * window.devicePixelRatio;
+                this.DPISet = true;
                 this.renderPlot();
             }
         }
 
 
-
         renderPlot(){
-            this.drawAxes();
-            this.drawLine();
+            this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+            if(this.data != null && this.DPISet){
+                this.scaleX = linearScale(this.xmin, this.xmax, this.padding, this.canvas.width-this.padding);
+                this.scaleY = linearScale(this.ymin, this.ymax, this.canvas.height-this.padding, this.padding);
 
-            this.ctx.strokeStyle="black";
-            this.ctx.lineWidth = 10;
-            let w = this.canvas.width-40;
-            let h = this.canvas.height-40;
-            this.ctx.strokeRect(20,20,w,h);
+                this.ctx.strokeStyle="black;"
+                this.ctx.lineWidth=2;
+
+                this.drawAxes();
+                this.drawLine();
+            }
         }
 
 
         drawAxes(){
-            let data = JSON.parse(this.getAttribute('data'));
-            if(data == null){
-                return
+            let xTicks = 10;
+            let yTicks = 5;
+
+            // draw the long lines.
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.scaleX(this.xmin), this.scaleY(this.ymax));
+            this.ctx.lineTo(this.scaleX(this.xmin), this.scaleY(this.ymin));
+            this.ctx.lineTo(this.scaleX(this.xmax), this.scaleY(this.ymin));
+            this.ctx.stroke();
+
+            // draw the tick marks.
+            for(let x=1; x <= xTicks; x++){
+                let position = (x/xTicks)*(this.canvas.width-2*this.padding)+this.padding;
+                let zero = this.canvas.height-this.padding;
+                this.ctx.beginPath();
+                this.ctx.moveTo(position, zero+5);
+                this.ctx.lineTo(position, zero-5);
+                this.ctx.stroke();
             }
-            xmin = -Infinity;
+            for(let y=0; y < yTicks; y++){
+                let position = (y/yTicks)*(this.canvas.height-2*this.padding)+this.padding;
+                let zero = this.padding;
+                this.ctx.beginPath();
+                this.ctx.moveTo(zero-5, position);
+                this.ctx.lineTo(zero+5, position);
+                this.ctx.stroke();
+            }
+        
         }
 
         drawLine(){
-            let data = JSON.parse(this.getAttribute('data'));
-            if(data == null){
-                return
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.scaleX(this.data.xs[0]), this.scaleY(this.data.ys[0]));
+            for(let i=1; i<this.data.xs.length; i++){
+                let x = this.scaleX(this.data.xs[i])
+                let y = this.scaleY(this.data.ys[i])
+                this.ctx.lineTo(x,y);
             }
-            for(let x of data.xs){
-                for(let y of data.ys){
-                    
-                }
-            }
+            this.ctx.stroke();
         }
 
     }
@@ -88,11 +142,23 @@ title: Playing Around with D3.js
 
 
 <div style="width:100%;height:200px;">
-    <line-plot id="myPlot"></line-plot>
+    <line-plot id="myPlot" ></line-plot>
 </div>
 
 <script>
-// d3.csv("https://raw.githubusercontent.com/holtzy/data_to_viz/master/Example_dataset/5_OneCatSevNumOrdered.csv", function(data){
-//     d3.select("#myPlot").attr("data",JSON.stringify(data));
-// });
+step = 0;
+setInterval(function(){
+    step++;
+
+    lp = document.querySelector("#myPlot")
+    let data = {};
+    data.xs = [];
+    data.ys = [];
+    for(let x=0;x<Math.PI*4;x+=0.01){
+        data.xs.push(x);
+        data.ys.push(Math.sin(x+step*0.08))
+    }
+
+    lp.setAttribute("data", JSON.stringify(data))
+},50);
 </script>
