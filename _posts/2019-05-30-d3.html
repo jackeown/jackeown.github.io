@@ -16,8 +16,10 @@ title: Playing Around with D3.js
         return scale;
     }
 
+
+
     class LinePlot extends HTMLElement {
-        static observedAttributes = ['data'];
+        static observedAttributes = ["data", "xmin", "xmax", "ymin", "ymax"];
 
         constructor() {
             // Always call super first in constructor
@@ -40,21 +42,46 @@ title: Playing Around with D3.js
         }
 
         attributeChangedCallback(name, oldValue, newValue) {
-            console.log("custom element attribute changed!");
+            console.log(`custom element attribute "${name}"!`);
             if(name === "data"){
                 this.data = JSON.parse(this.getAttribute('data'));
-                
+
                 if(this.data == null){
                     this.xmin = this.xmax = this.ymin = this.ymax = null;
                     this.scaleX = this.scaleY = null;
-                    return
                 }
-    
+            }
+
+            // Find a better way to do this...
+            if(this.getAttribute("xmin")){
+                this.xmin = +this.getAttribute("xmin")
+            }
+            else if(this.data){
                 this.xmin = Math.min(...this.data.xs);
+            }
+
+            if(this.getAttribute("xmax")){
+                this.xmax = +this.getAttribute("xmax")
+            }
+            else if(this.data){
                 this.xmax = Math.max(...this.data.xs);
+            }
+
+            if(this.getAttribute("ymin")){
+                this.ymin = +this.getAttribute("ymin")
+            }
+            else if(this.data){
                 this.ymin = Math.min(...this.data.ys);
+            }
+
+            if(this.getAttribute("ymax")){
+                this.ymax = +this.getAttribute("ymax")
+            }
+            else if(this.data){
                 this.ymax = Math.max(...this.data.ys);
             }
+
+
             this.renderPlot();
         }
 
@@ -82,6 +109,8 @@ title: Playing Around with D3.js
             if(this.data != null && this.DPISet){
                 this.scaleX = linearScale(this.xmin, this.xmax, this.padding, this.canvas.width-this.padding);
                 this.scaleY = linearScale(this.ymin, this.ymax, this.canvas.height-this.padding, this.padding);
+                this.scaleXInverse = linearScale(this.padding, this.canvas.width-this.padding, this.xmin, this.xmax);
+                this.scaleYInverse = linearScale(this.canvas.height-this.padding, this.padding, this.ymin, this.ymax);
 
                 this.ctx.strokeStyle="black;"
                 this.ctx.lineWidth=2;
@@ -91,6 +120,21 @@ title: Playing Around with D3.js
             }
         }
 
+        drawLabel(text, x, y, rotated){
+            this.ctx.font = "11pt arial"
+            if(rotated){
+                this.ctx.translate(x,y);
+                this.ctx.rotate(-Math.PI/2);
+
+                this.ctx.fillText(text,0,0);
+                
+                this.ctx.rotate(Math.PI/2);
+                this.ctx.translate(-x,-y);
+            }
+            else{
+                this.ctx.fillText(text,x,y);
+            }
+        }
 
         drawAxes(){
             let xTicks = 10;
@@ -103,7 +147,7 @@ title: Playing Around with D3.js
             this.ctx.lineTo(this.scaleX(this.xmax), this.scaleY(this.ymin));
             this.ctx.stroke();
 
-            // draw the tick marks.
+            // draw the tick marks and labels.
             for(let x=1; x <= xTicks; x++){
                 let position = (x/xTicks)*(this.canvas.width-2*this.padding)+this.padding;
                 let zero = this.canvas.height-this.padding;
@@ -111,6 +155,9 @@ title: Playing Around with D3.js
                 this.ctx.moveTo(position, zero+5);
                 this.ctx.lineTo(position, zero-5);
                 this.ctx.stroke();
+
+                let label = (x/xTicks)*(this.xmax-this.xmin)+this.xmin;
+                this.drawLabel(label.toFixed(2), position-15, zero+20, false);
             }
             for(let y=0; y < yTicks; y++){
                 let position = (y/yTicks)*(this.canvas.height-2*this.padding)+this.padding;
@@ -119,6 +166,9 @@ title: Playing Around with D3.js
                 this.ctx.moveTo(zero-5, position);
                 this.ctx.lineTo(zero+5, position);
                 this.ctx.stroke();
+
+                let label = ((yTicks-y)/yTicks)*(this.ymax-this.ymin)+this.ymin;
+                this.drawLabel(label.toFixed(2), zero-10, position+15, true);
             }
         
         }
@@ -141,23 +191,23 @@ title: Playing Around with D3.js
 </script>
 
 
-<div style="width:100%;height:200px;">
+<div style="width:100%;height:300px;">
     <line-plot id="myPlot" ></line-plot>
 </div>
 
 <script>
 step = 0;
+data = {}
+data.xs = [];
+data.ys = [];
+val = 0;
 setInterval(function(){
     step++;
 
     lp = document.querySelector("#myPlot")
-    let data = {};
-    data.xs = [];
-    data.ys = [];
-    for(let x=0;x<Math.PI*4;x+=0.01){
-        data.xs.push(x);
-        data.ys.push(Math.sin(x+step*0.08))
-    }
+    val += Math.random()-0.5;
+    data.xs.push(step);
+    data.ys.push(val);
 
     lp.setAttribute("data", JSON.stringify(data))
 },50);
