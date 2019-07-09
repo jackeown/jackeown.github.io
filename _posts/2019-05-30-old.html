@@ -182,6 +182,7 @@ title: Playing Around with D3.js
                 this.ctx.lineTo(x,y);
             }
             this.ctx.stroke();
+            this.ctx.strokeStyle="black"
         }
 
     }
@@ -192,14 +193,14 @@ title: Playing Around with D3.js
 
 
 <div style="width:100%;height:300px;">
-    <line-plot id="myPlot" ></line-plot>
+    <line-plot id="myPlot" ymin="-10" ymax="10"></line-plot>
 </div>
 
 <script>
 step = 0;
 data = {}
-data.xs = [];
-data.ys = [];
+data.xs = [0];
+data.ys = [0];
 val = 0;
 setInterval(function(){
     step++;

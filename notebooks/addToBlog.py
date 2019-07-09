@@ -1,7 +1,7 @@
 # This file should take in a jupyter notebook and an author name.
-# it will use jupyter nbconvert to convert the notebook to markdown 
+# it will use jupyter nbconvert to convert the notebook to markdown
 # (with some Front Matter for jekyll)
-# 
+#
 # This script will then copy that md file along with any images created
 # into the jekyll site located at ../jekyllSite relative to where this script
 # was run.
@@ -14,6 +14,7 @@ try:
     notebook, title, author = sys.argv[1:]
 except Exception as e:
     print("usage: python addToBlog.py notebook.ipynb \"Best Blog Post Ever!\" \"John Smith\"")
+    exit()
 
 # Create custom jekyll template using the appropriate author and title
 baseTemplate = open("baseTemplate.tpl", "r")

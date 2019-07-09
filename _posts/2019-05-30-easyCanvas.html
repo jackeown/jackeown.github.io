@@ -1,0 +1,198 @@
+---
+layout: default
+author: Jack
+title: The making of easy-canvas.js 
+---
+
+<script src="/assets/js/easyCanvas/easyCanvas.bundle.js"></script>
+
+<div id="plotContainer" style="width:100%; height:500px;">
+    <easy-canvas id="myPlot" ymin="0" ymax="1" xmin="0" xmax="1" default-axes-on="true"></easy-canvas>
+</div>
+
+<script id="testing">
+    function r(){return parseInt(Math.random()*255)}
+    function getRandomRGB(){
+        return `rgb(${r()},${r()},${r()})`;
+    }
+
+    let demoCanvas = document.querySelector("#myPlot");
+    demoCanvas.canvas.addEventListener("wheel",function(e){
+        let sensitivity = 0.001
+        let zoomAmount = (e.deltaY*sensitivity)*Math.min(this.xmax-this.xmin,this.ymax-this.ymin);
+
+        let px = (this.mouseX - this.xmin) / (this.xmax-this.xmin)
+        let py = (this.mouseY - this.ymin) / (this.ymax-this.ymin)
+
+        // make sure the zoom makes sense and there aren't weird numerical issues.
+        // also make sure we don't zoom in too far...
+        if(isNaN(px) || isNaN(py) || isNaN(zoomAmount) || 
+            (zoomAmount<0 && Math.abs(zoomAmount) < 0.0000001)){
+            return
+        }
+
+        this.xmin -= px*zoomAmount;
+        this.xmax += (1-px)*zoomAmount;
+
+        this.ymin -= py*zoomAmount;
+        this.ymax += (1-py)*zoomAmount;
+
+        e.preventDefault();
+    }.bind(demoCanvas))
+
+    demoCanvas.drawingLoop = function(){
+        for(let i=0;i<50;i++){
+            let x = Math.random()*0.75 + 0.15;
+            let y = Math.random()*0.75 + 0.15;
+            let r = Math.random()/10;
+            
+            let rgb = getRandomRGB();
+            this.ctx.strokeStyle = rgb;
+            this.ctx.fillStyle = rgb;
+            this.ctx.beginPath();
+            this.arc(x,y,r,0,2*Math.PI, true);
+            if(this.mouseInCircle(x,y,r)){
+                this.ctx.fill();
+            }
+            this.ctx.stroke();
+        }
+        this.ctx.strokeStyle="black";
+        this.ctx.fillStyle="black";
+        this.ctx.lineWidth=1;
+    }.bind(demoCanvas);
+</script>
+
+<h1>easyCanvas.js</h1><hr>
+
+<p>
+    easyCanvas.js is meant to be a small wrapper on top of html5 canvas. Its main benefit is that, while it has the following features which can save
+    a lot of time when you are making visualizations with canvas, it also exposes the underlying canvas context so you can be creative with your visualizations.
+</p>
+
+<ol>
+    <li>DPI adjusts when the window is resized or if CSS changes.</li>
+    <li>By setting "xmin", "xmax", "ymin", and "ymax", the coordinate system of your canvas is easily customized.</li>
+    <li>Animation is automatic and the screen is cleared between frames.</li>
+    <li>Contains functions for creating common types of plots (line,bar,etc.)</li>
+    <li>Contains tools which can be enabled for zooming/selection.</li>
+</ol>
+
+
+<h1>
+    Here's an example of a standard line plot along with the code that produced it:
+</h1>
+
+<easy-canvas id="example1"></easy-canvas>
+
+<script>
+    function range(a,b,delta=0.01){
+        let l = [];
+        for(let i=a;i<b;i+=delta){
+            l.push(i);
+        }
+        return l;
+    }
+
+    const data1 = {
+        xs: range(0,2*Math.PI), // arbitrary name
+        Sine: range(0,2*Math.PI).map(v => Math.sin(v)), // arbitrary name
+        Cosine: range(0,2*Math.PI).map(v => Math.cos(v)) // arbitrary name
+    }
+
+    const settings1 = {
+        title: "Sine and Cosine",
+        xLabel: "xs",
+        yLabel: "sine and cosine",
+        inputs: ["xs","xs"],
+        outputs: ["Sine","Cosine"],
+    }
+
+    // ec1 because this is the first example canvas
+    const ec1 = document.getElementById("example1");
+    ec1.drawingLoop = function(){
+        this.hotAndReady.linePlot(data1, settings1);
+    }.bind(ec1);
+</script>
+
+
+Here's the HTML:
+{% highlight html %}
+<easy-canvas id="example1"></easy-canvas>
+{% endhighlight %}
+
+and here's the javascript:
+{% highlight javascript %}
+function range(a,b,delta=0.01){
+    let l = [];
+    for(let i=a;i<b;i+=delta){
+        l.push(i);
+    }
+    return l;
+}
+
+const data = {
+    xs: range(0,2*Math.PI), // arbitrary name
+    Sine: range(0,2*Math.PI).map(v => Math.sin(v)), // arbitrary name
+    Cosine: range(0,2*Math.PI).map(v => Math.cos(v)) // arbitrary name
+}
+
+const settings = {
+    title: "Sine and Cosine",
+    xLabel: "xs",
+    yLabel: "sine and cosine",
+    inputs: ["xs","xs"],
+    outputs: ["Sine","Cosine"],
+}
+
+const ec = document.getElementById("example1");
+ec.drawingLoop = function(){
+    this.hotAndReady.linePlot(data, settings);
+}.bind(ec);
+{% endhighlight %}
+
+<hr><br>
+<h1>
+    Here's an example of a standard bar plot along with the code that produced it:
+</h1>
+
+<easy-canvas id="example2"></easy-canvas>
+
+<script>
+    const data2 = {
+        "Ice Cream":{
+            "chocolate": 10,
+            "vanilla": 8
+        },
+        "Cake": {
+            "chocalate": 20,
+            "vanilla": 24
+        }
+    }
+
+    const settings2 = {
+        title: "Desert Sales",
+        xLabel: "Flavors",
+        yLabel: "Pounds of Product Sold",
+
+        inputs: ["xs","xs"],
+        outputs: ["Sine","Cosine"]
+    }
+
+    // example canvas 2
+    const ec2 = document.getElementById("example2");
+    ec2.drawingLoop = function(){
+        this.hotAndReady.barPlot(data2,settings2);
+    }.bind(ec2);
+</script>
+
+
+Here's the HTML:
+{% highlight html %}
+<easy-canvas id="example2"></easy-canvas>
+{% endhighlight %}
+
+and here's the javascript:
+{% highlight javascript %}
+
+{% endhighlight %}
+
