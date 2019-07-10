@@ -7,7 +7,7 @@ title: The making of easy-canvas.js
 <script src="/assets/js/easyCanvas/easyCanvas.bundle.js"></script>
 
 <div id="plotContainer" style="width:100%; height:500px;">
-    <easy-canvas id="myPlot" ymin="0" ymax="1" xmin="0" xmax="1" default-axes-on="true"></easy-canvas>
+    <easy-canvas id="myPlot" ymin="0" ymax="1" xmin="0" xmax="1" default-axes-on="true" framerate="30"></easy-canvas>
 </div>
 
 <script id="testing">
@@ -16,6 +16,17 @@ title: The making of easy-canvas.js
         return `rgb(${r()},${r()},${r()})`;
     }
 
+    let circles = []
+    for(let i=0;i<50;i++){
+        let x = Math.random()*0.75 + 0.15;
+        let y = Math.random()*0.75 + 0.15;
+        let r = Math.random()/10;
+        // let velocity = {x:0,y:0};
+        let velocity = {x:(Math.random()-0.5)/30, y:(Math.random()-0.5)/30}
+        circles.push({x:x,y:y,r:r,color:getRandomRGB(),velocity: velocity});
+    }
+
+    
     let demoCanvas = document.querySelector("#myPlot");
     demoCanvas.canvas.addEventListener("wheel",function(e){
         let sensitivity = 0.001
@@ -41,20 +52,32 @@ title: The making of easy-canvas.js
     }.bind(demoCanvas))
 
     demoCanvas.drawingLoop = function(){
-        for(let i=0;i<50;i++){
-            let x = Math.random()*0.75 + 0.15;
-            let y = Math.random()*0.75 + 0.15;
-            let r = Math.random()/10;
-            
-            let rgb = getRandomRGB();
-            this.ctx.strokeStyle = rgb;
-            this.ctx.fillStyle = rgb;
+        for(let c of circles){
+            let x,y,r;
+            ({x,y,r} = c)
+            this.ctx.strokeStyle = c.color;
+            this.ctx.fillStyle = c.color;
             this.ctx.beginPath();
             this.arc(x,y,r,0,2*Math.PI, true);
+            this.ctx.closePath();
             if(this.mouseInCircle(x,y,r)){
                 this.ctx.fill();
             }
             this.ctx.stroke();
+            c.x += c.velocity.x;
+            c.y += c.velocity.y;
+            if(c.x < 0){
+                c.velocity.x = Math.abs(c.velocity.x);
+            }
+            else if(c.x > 1){
+                c.velocity.x = -Math.abs(c.velocity.x);
+            }
+            else if(c.y < 0){
+                c.velocity.y = Math.abs(c.velocity.y);
+            }
+            else if(c.y > 1){
+                c.velocity.y = -Math.abs(c.velocity.y);
+            }
         }
         this.ctx.strokeStyle="black";
         this.ctx.fillStyle="black";

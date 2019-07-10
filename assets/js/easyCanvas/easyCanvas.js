@@ -21,10 +21,31 @@ class EasyCanvas extends HTMLElement {
         this.shadow = this.attachShadow({mode: 'open'});
         this.canvas = document.createElement("canvas");
         this.canvas.setAttribute("style","border:1px solid black;width:100%;height:100%;");
+
+        this.canvas.addEventListener("mousedown",function(e){this.mouseDown = true;}.bind(this))
+        this.canvas.addEventListener("mouseup",function(e){this.mouseDown = false;}.bind(this))
         this.canvas.addEventListener("mousemove",function(e){
-            var rect = this.canvas.getBoundingClientRect();
-            this.mouseX = this.scaleXInverse(e.clientX - rect.left)
-            this.mouseY = this.scaleYInverse(e.clientY - rect.top)
+            // get size of padding in data units.
+            let px = Math.abs(this.scaleXInverse(this.padding) - this.scaleXInverse(0));
+            let py = Math.abs(this.scaleYInverse(this.padding) - this.scaleYInverse(0));
+
+            // make scales which are slightly different from this.scaleXInverse and this.scaleYInverse
+            let sx = linearScale(0,this.canvas.width, this.xmin-px, this.xmax+px)
+            let sy = linearScale(0,this.canvas.height, this.ymax+py, this.ymin-py)
+
+            this.mouseX = sx(e.offsetX*window.devicePixelRatio)
+            this.mouseY = sy(e.offsetY*window.devicePixelRatio)
+
+            if(this.mouseDown){
+                let dx = this.scaleXInverse(e.movementX)-this.scaleXInverse(0);
+                let dy = this.scaleYInverse(e.movementY)-this.scaleYInverse(0);
+
+                this.xmin -= dx;
+                this.xmax -= dx;
+                this.ymin -= dy;
+                this.ymax -= dy;
+            }
+
         }.bind(this));
 
         this.shadow.appendChild(this.canvas);
@@ -45,9 +66,11 @@ class EasyCanvas extends HTMLElement {
         this.ymax = 100;
         
         this.defaultAxesOn = true;
+        this.mouseDown = false; // left mouse button is not clicked in when the webpage loads...
         
         // Constantly be redrawing the plot:
-        this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
+        // this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
+        setTimeout(this.renderPlot.bind(this), 100);
 
         // bind all methods from easyCanvasHotAndReady
         this.hotAndReady = {}
@@ -59,18 +82,12 @@ class EasyCanvas extends HTMLElement {
     attributeChangedCallback(name, oldValue, newValue) {
         console.log(`custom element attribute "${name}" has changed from "${oldValue}" to "${newValue}"`);
         
-        if(["xmin", "xmax", "ymin", "ymax", "padding"].includes(name)){
+        if(["xmin", "xmax", "ymin", "ymax", "padding", "framerate"].includes(name)){
             this[name] = +newValue;
         }
         
         else if(name === "default-axes-on"){
             this.defaultAxesOn = (newValue == "true");
-        }
-
-        else if(name === "framerate"){
-            this.framerate = +newValue;
-            clearInterval(this.plotInterval);
-            this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
         }
     }
 
@@ -94,6 +111,10 @@ class EasyCanvas extends HTMLElement {
 
 
     renderPlot(){
+        setTimeout(function(){
+            requestAnimationFrame(this.renderPlot.bind(this))
+        }.bind(this),1000/this.framerate);
+
         this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
         if(this.DPIHasBeenSet){
             this.scaleX = linearScale(this.xmin, this.xmax, this.padding, this.canvas.width-this.padding);
@@ -226,7 +247,7 @@ class EasyCanvas extends HTMLElement {
 
     // standard canvas stuff wrapped or reimplemented!!
     arc(cx, cy, r, sAngle, eAngle, counterclockwise=false){
-        let delta = 0.01;
+        let delta = 0.05;
 
         if(!counterclockwise){
             let tmp = sAngle;
@@ -237,7 +258,7 @@ class EasyCanvas extends HTMLElement {
         let x = this.scaleX(cx + Math.cos(sAngle)*r);
         let y = this.scaleY(cy + Math.sin(sAngle)*r);
         this.ctx.moveTo(x,y);
-        for(let angle=sAngle; angle<eAngle; angle += delta){
+        for(let angle=sAngle; angle<eAngle-delta; angle += delta){
                 let x = this.scaleX(cx + Math.cos(angle)*r);
                 let y = this.scaleY(cy + Math.sin(angle)*r);
                 this.ctx.lineTo(x,y);
