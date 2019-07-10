@@ -12,7 +12,7 @@ function linearScale(d1,d2, r1, r2){
 }
 
 class EasyCanvas extends HTMLElement {
-    static observedAttributes = ["xmin", "xmax", "ymin", "ymax", "framerate", "padding", "default-axes-on"];
+    static get observedAttributes(){ return ["xmin", "xmax", "ymin", "ymax", "framerate", "padding", "default-axes-on"];}
     
     constructor() {
         // Always call super first in constructor
