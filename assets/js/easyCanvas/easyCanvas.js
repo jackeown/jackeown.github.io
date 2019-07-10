@@ -22,8 +22,11 @@ class EasyCanvas extends HTMLElement {
         this.canvas = document.createElement("canvas");
         this.canvas.setAttribute("style","border:1px solid black;width:100%;height:100%;");
 
+        // update this.mouseDown boolean
         this.canvas.addEventListener("mousedown",function(e){this.mouseDown = true;}.bind(this))
         this.canvas.addEventListener("mouseup",function(e){this.mouseDown = false;}.bind(this))
+       
+        // update mouseX and mouseY locations
         this.canvas.addEventListener("mousemove",function(e){
             // get size of padding in data units.
             let px = Math.abs(this.scaleXInverse(this.padding) - this.scaleXInverse(0));
@@ -35,7 +38,10 @@ class EasyCanvas extends HTMLElement {
 
             this.mouseX = sx(e.offsetX*window.devicePixelRatio)
             this.mouseY = sy(e.offsetY*window.devicePixelRatio)
+        }.bind(this));
 
+        // panning controls
+        this.canvas.addEventListener("mousemove",function(e){
             if(this.mouseDown){
                 let dx = this.scaleXInverse(e.movementX)-this.scaleXInverse(0);
                 let dy = this.scaleYInverse(e.movementY)-this.scaleYInverse(0);
@@ -45,8 +51,48 @@ class EasyCanvas extends HTMLElement {
                 this.ymin -= dy;
                 this.ymax -= dy;
             }
-
         }.bind(this));
+
+        // zooming controls
+        this.canvas.addEventListener("wheel",function(e){
+            let sensitivity = 0.001
+            let zoomAmount = (e.deltaY*sensitivity)*Math.min(this.xmax-this.xmin,this.ymax-this.ymin);
+    
+            let px = (this.mouseX - this.xmin) / (this.xmax-this.xmin)
+            let py = (this.mouseY - this.ymin) / (this.ymax-this.ymin)
+    
+            // make sure the zoom makes sense and there aren't weird numerical issues.
+            // also make sure we don't zoom in too far...
+            if(isNaN(px) || isNaN(py) || isNaN(zoomAmount) || 
+                (zoomAmount<0 && Math.abs(zoomAmount) < 0.0000001)){
+                return
+            }
+
+console.log(`
+px: ${px},
+py: ${py},
+zoomAmount: ${zoomAmount}
+`)
+            let aspectRatio = (this.xmax-this.xmin)/(this.ymax-this.ymin)
+            if(this.mouseX > this.xmin && this.mouseY > this.ymin){
+                this.xmin -= px*zoomAmount;
+                this.xmax += (1-px)*zoomAmount;
+                this.ymin -= py*zoomAmount/aspectRatio;
+                this.ymax += (1-py)*zoomAmount/aspectRatio;
+            }
+            if(this.mouseY < this.ymin){
+                this.xmin -= px*zoomAmount;
+                this.xmax += (1-px)*zoomAmount;
+            }
+            if(this.mouseX < this.xmin){
+                this.ymin -= py*zoomAmount;
+                this.ymax += (1-py)*zoomAmount;
+            }
+
+
+            e.preventDefault();
+        }.bind(this))
+
 
         this.shadow.appendChild(this.canvas);
         this.ctx = this.canvas.getContext("2d");
