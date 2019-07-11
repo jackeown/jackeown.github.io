@@ -11,7 +11,7 @@ function linearScale(d1,d2, r1, r2){
 }
 
 class EasyCanvas extends HTMLElement {
-    static get observedAttributes(){ return ["xmin", "xmax", "ymin", "ymax", "framerate", "padding", "default-axes-on"];}
+    static get observedAttributes(){ return ["xmin", "xmax", "ymin", "ymax", "framerate", "padding", "default-axes-on","controls"];}
     
     constructor() {
         // Always call super first in constructor
@@ -20,7 +20,7 @@ class EasyCanvas extends HTMLElement {
         // Set up canvas 
         this.shadow = this.attachShadow({mode: 'open'});
         this.canvas = document.createElement("canvas");
-        this.canvas.setAttribute("style","border:1px solid black;width:100%;height:100%;");
+        this.canvas.setAttribute("style","border:1px solid black;width:100%;height:100%;touch-action:none");
 
         // update this.mouseDown boolean
         this.canvas.addEventListener("mousedown",function(e){this.mouseDown = true;}.bind(this))
@@ -40,21 +40,22 @@ class EasyCanvas extends HTMLElement {
             this.mouseY = sy(e.offsetY*window.devicePixelRatio)
         }.bind(this));
 
-        // panning controls
-        this.canvas.addEventListener("mousemove",function(e){
+
+        // panningControl and zoomingControl can't be actual methods because they need
+        // to be bound to the object for event handling.
+        this.panningControl = function(e){
             if(this.mouseDown){
                 let dx = this.scaleXInverse(e.movementX)-this.scaleXInverse(0);
                 let dy = this.scaleYInverse(e.movementY)-this.scaleYInverse(0);
-
+    
                 this.xmin -= dx;
                 this.xmax -= dx;
                 this.ymin -= dy;
                 this.ymax -= dy;
             }
-        }.bind(this));
-
-        // zooming controls
-        this.canvas.addEventListener("wheel",function(e){
+        }.bind(this)
+    
+        this.zoomingControl = function(e){
             let sensitivity = 0.001
             let zoomAmount = (e.deltaY*sensitivity)*Math.min(this.xmax-this.xmin,this.ymax-this.ymin);
     
@@ -67,12 +68,7 @@ class EasyCanvas extends HTMLElement {
                 (zoomAmount<0 && Math.abs(zoomAmount) < 0.0000001)){
                 return
             }
-
-console.log(`
-px: ${px},
-py: ${py},
-zoomAmount: ${zoomAmount}
-`)
+    
             let aspectRatio = (this.xmax-this.xmin)/(this.ymax-this.ymin)
             if(this.mouseX > this.xmin && this.mouseY > this.ymin){
                 this.xmin -= px*zoomAmount;
@@ -88,10 +84,19 @@ zoomAmount: ${zoomAmount}
                 this.ymin -= py*zoomAmount;
                 this.ymax += (1-py)*zoomAmount;
             }
-
-
+    
             e.preventDefault();
-        }.bind(this))
+        }.bind(this)
+
+
+        // panning controls
+        this.canvas.addEventListener("mousemove",this.panningControl);
+
+        // zooming controls
+        this.canvas.addEventListener("wheel",this.zoomingControl);
+
+
+
 
 
         this.shadow.appendChild(this.canvas);
@@ -116,7 +121,7 @@ zoomAmount: ${zoomAmount}
         
         // Constantly be redrawing the plot:
         // this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
-        setTimeout(this.renderPlot.bind(this), 100);
+        this.renderPlot();
 
         // bind all methods from easyCanvasHotAndReady
         this.hotAndReady = {}
@@ -124,17 +129,34 @@ zoomAmount: ${zoomAmount}
             this.hotAndReady[key] = hotAndReadyFuncs[key].bind(this);
         }
     }
+
+
+
     
     attributeChangedCallback(name, oldValue, newValue) {
-        console.log(`custom element attribute "${name}" has changed from "${oldValue}" to "${newValue}"`);
+        if(oldValue != newValue)
+            console.log(`custom element attribute "${name}" has changed from "${oldValue}" to "${newValue}"`);
         
+        // simple numeric
         if(["xmin", "xmax", "ymin", "ymax", "padding", "framerate"].includes(name)){
             this[name] = +newValue;
         }
         
-        else if(name === "default-axes-on"){
+        // simple boolean
+        else if(["default-axes-on"].includes(name)){
             this.defaultAxesOn = (newValue == "true");
         }
+
+        else if(name === "controls"){
+            this.canvas.removeEventListener("mousemove",this.panningControl);
+            this.canvas.removeEventListener("wheel",this.zoomingControl);
+
+            if(newValue.toLowerCase() === "true"){
+
+            }
+        }
+
+
     }
 
 
@@ -146,9 +168,9 @@ zoomAmount: ${zoomAmount}
         let style_width = +s.getPropertyValue("width").slice(0, -2);
 
         //scale the canvas
-        if(this.canvas.height != style_height*window.devicePixelRatio ||
-            this.canvas.width  != style_width*window.devicePixelRatio ){
-
+        let heightDiff = Math.abs(this.canvas.height - style_height*window.devicePixelRatio)
+        let widthDiff = Math.abs(this.canvas.width - style_width*window.devicePixelRatio)
+        if(Math.max(heightDiff, widthDiff) > 10){
             this.canvas.height = style_height * window.devicePixelRatio;
             this.canvas.width = style_width * window.devicePixelRatio;
             this.DPIHasBeenSet = true;
@@ -157,12 +179,15 @@ zoomAmount: ${zoomAmount}
 
 
     renderPlot(){
-        setTimeout(function(){
-            requestAnimationFrame(this.renderPlot.bind(this))
-        }.bind(this),1000/this.framerate);
+        requestAnimationFrame(this.renderPlot.bind(this))
 
-        this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+        // will be false if this.lastFrame is undefined
+        if(new Date() - this.lastFrame < 1000/this.framerate){
+            return
+        }
+
         if(this.DPIHasBeenSet){
+            this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
             this.scaleX = linearScale(this.xmin, this.xmax, this.padding, this.canvas.width-this.padding);
             this.scaleY = linearScale(this.ymin, this.ymax, this.canvas.height-this.padding, this.padding);
             this.scaleXInverse = linearScale(this.padding, this.canvas.width-this.padding, this.xmin, this.xmax);
@@ -175,6 +200,7 @@ zoomAmount: ${zoomAmount}
             if(this.drawingLoop){
                 this.drawingLoop();
             }
+            this.lastFrame = new Date();
         }
     }
 

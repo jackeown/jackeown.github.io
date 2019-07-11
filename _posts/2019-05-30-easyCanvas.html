@@ -67,8 +67,9 @@ title: The making of easy-canvas.js
 <h1>easyCanvas.js</h1><hr>
 
 <p>
-    easyCanvas.js is meant to be a small wrapper on top of html5 canvas. Its main benefit is that, while it has the following features which can save
-    a lot of time when you are making visualizations with canvas, it also exposes the underlying canvas context so you can be creative with your visualizations.
+    easyCanvas.js is meant to be a small wrapper on top of html5 canvas. 
+    Its main benefit is that it exposes the underlying canvas context so you can be creative with your visualizations.
+    It has a few functions for making simple plots, but for a more convenient (but less extensible) solution, check out chart.js.
 </p>
 
 <ol>
@@ -97,8 +98,8 @@ title: The making of easy-canvas.js
 
     const data1 = {
         xs: range(0,2*Math.PI), // arbitrary name
-        Sine: range(0,2*Math.PI).map(v => Math.sin(v)), // arbitrary name
-        Cosine: range(0,2*Math.PI).map(v => Math.cos(v)) // arbitrary name
+        sine: range(0,2*Math.PI).map(v => Math.sin(v)), // arbitrary name
+        cosine: range(0,2*Math.PI).map(v => Math.cos(v)) // arbitrary name
     }
 
     const settings1 = {
@@ -106,7 +107,8 @@ title: The making of easy-canvas.js
         xLabel: "xs",
         yLabel: "sine and cosine",
         inputs: ["xs","xs"],
-        outputs: ["Sine","Cosine"],
+        outputs: ["sine","cosine"],
+        legendLabels: ["Sine","Cosine"],
     }
 
     // ec1 because this is the first example canvas
@@ -134,8 +136,8 @@ function range(a,b,delta=0.01){
 
 const data = {
     xs: range(0,2*Math.PI), // arbitrary name
-    Sine: range(0,2*Math.PI).map(v => Math.sin(v)), // arbitrary name
-    Cosine: range(0,2*Math.PI).map(v => Math.cos(v)) // arbitrary name
+    sine: range(0,2*Math.PI).map(v => Math.sin(v)), // arbitrary name
+    sosine: range(0,2*Math.PI).map(v => Math.cos(v)) // arbitrary name
 }
 
 const settings = {
@@ -143,7 +145,8 @@ const settings = {
     xLabel: "xs",
     yLabel: "sine and cosine",
     inputs: ["xs","xs"],
-    outputs: ["Sine","Cosine"],
+    outputs: ["sine", "cosine"],
+    legendLabels: ["Sine","Cosine"],
 }
 
 const ec = document.getElementById("example1");
@@ -161,23 +164,15 @@ ec.drawingLoop = function(){
 
 <script>
     const data2 = {
-        "Ice Cream":{
-            "chocolate": 10,
-            "vanilla": 8
-        },
-        "Cake": {
-            "chocalate": 20,
-            "vanilla": 24
-        }
+        "bars": ["Ice Cream", "Cake", "Donuts", "Key-lime pie"],
+        "heights": [5,10,30,4]
     }
 
     const settings2 = {
-        title: "Desert Sales",
+        title: "Dessert Sales",
         xLabel: "Flavors",
         yLabel: "Pounds of Product Sold",
-
-        inputs: ["xs","xs"],
-        outputs: ["Sine","Cosine"]
+        legendLabels: data2.bars
     }
 
     // example canvas 2

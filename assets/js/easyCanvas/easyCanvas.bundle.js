@@ -12,7 +12,7 @@ function linearScale(d1,d2, r1, r2){
 }
 
 class EasyCanvas extends HTMLElement {
-    static get observedAttributes(){ return ["xmin", "xmax", "ymin", "ymax", "framerate", "padding", "default-axes-on"];}
+    static get observedAttributes(){ return ["xmin", "xmax", "ymin", "ymax", "framerate", "padding", "default-axes-on","controls"];}
     
     constructor() {
         // Always call super first in constructor
@@ -21,7 +21,7 @@ class EasyCanvas extends HTMLElement {
         // Set up canvas 
         this.shadow = this.attachShadow({mode: 'open'});
         this.canvas = document.createElement("canvas");
-        this.canvas.setAttribute("style","border:1px solid black;width:100%;height:100%;");
+        this.canvas.setAttribute("style","border:1px solid black;width:100%;height:100%;touch-action:none");
 
         // update this.mouseDown boolean
         this.canvas.addEventListener("mousedown",function(e){this.mouseDown = true;}.bind(this))
@@ -41,21 +41,22 @@ class EasyCanvas extends HTMLElement {
             this.mouseY = sy(e.offsetY*window.devicePixelRatio)
         }.bind(this));
 
-        // panning controls
-        this.canvas.addEventListener("mousemove",function(e){
+
+        // panningControl and zoomingControl can't be actual methods because they need
+        // to be bound to the object for event handling.
+        this.panningControl = function(e){
             if(this.mouseDown){
                 let dx = this.scaleXInverse(e.movementX)-this.scaleXInverse(0);
                 let dy = this.scaleYInverse(e.movementY)-this.scaleYInverse(0);
-
+    
                 this.xmin -= dx;
                 this.xmax -= dx;
                 this.ymin -= dy;
                 this.ymax -= dy;
             }
-        }.bind(this));
-
-        // zooming controls
-        this.canvas.addEventListener("wheel",function(e){
+        }.bind(this)
+    
+        this.zoomingControl = function(e){
             let sensitivity = 0.001
             let zoomAmount = (e.deltaY*sensitivity)*Math.min(this.xmax-this.xmin,this.ymax-this.ymin);
     
@@ -68,12 +69,7 @@ class EasyCanvas extends HTMLElement {
                 (zoomAmount<0 && Math.abs(zoomAmount) < 0.0000001)){
                 return
             }
-
-console.log(`
-px: ${px},
-py: ${py},
-zoomAmount: ${zoomAmount}
-`)
+    
             let aspectRatio = (this.xmax-this.xmin)/(this.ymax-this.ymin)
             if(this.mouseX > this.xmin && this.mouseY > this.ymin){
                 this.xmin -= px*zoomAmount;
@@ -89,10 +85,19 @@ zoomAmount: ${zoomAmount}
                 this.ymin -= py*zoomAmount;
                 this.ymax += (1-py)*zoomAmount;
             }
-
-
+    
             e.preventDefault();
-        }.bind(this))
+        }.bind(this)
+
+
+        // panning controls
+        this.canvas.addEventListener("mousemove",this.panningControl);
+
+        // zooming controls
+        this.canvas.addEventListener("wheel",this.zoomingControl);
+
+
+
 
 
         this.shadow.appendChild(this.canvas);
@@ -117,7 +122,7 @@ zoomAmount: ${zoomAmount}
         
         // Constantly be redrawing the plot:
         // this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
-        setTimeout(this.renderPlot.bind(this), 100);
+        this.renderPlot();
 
         // bind all methods from easyCanvasHotAndReady
         this.hotAndReady = {}
@@ -125,17 +130,34 @@ zoomAmount: ${zoomAmount}
             this.hotAndReady[key] = hotAndReadyFuncs[key].bind(this);
         }
     }
+
+
+
     
     attributeChangedCallback(name, oldValue, newValue) {
-        console.log(`custom element attribute "${name}" has changed from "${oldValue}" to "${newValue}"`);
+        if(oldValue != newValue)
+            console.log(`custom element attribute "${name}" has changed from "${oldValue}" to "${newValue}"`);
         
+        // simple numeric
         if(["xmin", "xmax", "ymin", "ymax", "padding", "framerate"].includes(name)){
             this[name] = +newValue;
         }
         
-        else if(name === "default-axes-on"){
+        // simple boolean
+        else if(["default-axes-on"].includes(name)){
             this.defaultAxesOn = (newValue == "true");
         }
+
+        else if(name === "controls"){
+            this.canvas.removeEventListener("mousemove",this.panningControl);
+            this.canvas.removeEventListener("wheel",this.zoomingControl);
+
+            if(newValue.toLowerCase() === "true"){
+
+            }
+        }
+
+
     }
 
 
@@ -147,9 +169,9 @@ zoomAmount: ${zoomAmount}
         let style_width = +s.getPropertyValue("width").slice(0, -2);
 
         //scale the canvas
-        if(this.canvas.height != style_height*window.devicePixelRatio ||
-            this.canvas.width  != style_width*window.devicePixelRatio ){
-
+        let heightDiff = Math.abs(this.canvas.height - style_height*window.devicePixelRatio)
+        let widthDiff = Math.abs(this.canvas.width - style_width*window.devicePixelRatio)
+        if(Math.max(heightDiff, widthDiff) > 10){
             this.canvas.height = style_height * window.devicePixelRatio;
             this.canvas.width = style_width * window.devicePixelRatio;
             this.DPIHasBeenSet = true;
@@ -158,12 +180,15 @@ zoomAmount: ${zoomAmount}
 
 
     renderPlot(){
-        setTimeout(function(){
-            requestAnimationFrame(this.renderPlot.bind(this))
-        }.bind(this),1000/this.framerate);
+        requestAnimationFrame(this.renderPlot.bind(this))
 
-        this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+        // will be false if this.lastFrame is undefined
+        if(new Date() - this.lastFrame < 1000/this.framerate){
+            return
+        }
+
         if(this.DPIHasBeenSet){
+            this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
             this.scaleX = linearScale(this.xmin, this.xmax, this.padding, this.canvas.width-this.padding);
             this.scaleY = linearScale(this.ymin, this.ymax, this.canvas.height-this.padding, this.padding);
             this.scaleXInverse = linearScale(this.padding, this.canvas.width-this.padding, this.xmin, this.xmax);
@@ -176,6 +201,7 @@ zoomAmount: ${zoomAmount}
             if(this.drawingLoop){
                 this.drawingLoop();
             }
+            this.lastFrame = new Date();
         }
     }
 
@@ -334,17 +360,12 @@ customElements.define('easy-canvas', EasyCanvas);
 
 // helpers:
 
+let defaultColors = ["red", "green", "blue", "purple", "orange"];
+
 function zip(xs,ys){
     return xs.map((v,i)=>[v,ys[i]])
 }
 
-window.watchedFunctionHistory = new Set();
-function callIfNotAlreadyCalled(f){
-    if(!window.watchedFunctionHistory.has(f)){
-        f();
-    }
-    window.watchedFunctionHistory.add(f);
-}
 
 
 function defaultVal(original,def){
@@ -394,16 +415,16 @@ function drawLegend(labels, settings){
     }
 }
 
-function drawLegendAxesAndTitle(settings){
+function drawLegendAxesLabelsAndTitle(settings){
     let title = defaultVal(settings.title, "Untitled");
     let xLabel = defaultVal(settings.xLabel, "input");
     let yLabel = defaultVal(settings.yLabel, "output");
-    let outputs = defaultVal(settings.outputs, ["ys"]);
-    let colors = defaultVal(settings.colors, ["red", "green", "blue", "purple", "orange"]);
+    let legendLabels = defaultVal(settings.legendLabels, ["ys"]);
+    let colors = defaultVal(settings.colors, defaultColors);
 
     // draw legend
-    let legendLabels = outputs.map((field,i) => {
-        return {text: field, color: colors[i]};
+    legendLabels = legendLabels.map((field,i) => {
+        return {text: field, color: colors[i%colors.length]};
     })
     drawLegend.bind(this)(legendLabels);
 
@@ -426,8 +447,13 @@ function drawLegendAxesAndTitle(settings){
 
 
 
-
-
+function rescaleAxes(xmin,xmax,ymin,ymax){
+        let ga = this.getAttribute.bind(this);
+        let sa = this.setAttribute.bind(this);
+        if(this.xmin != xmin || this.xmax != xmax || this.ymin != ymin || this.ymax != ymax){
+                sa("xmin",xmin);sa("xmax",xmax);sa("ymin",ymin);sa("ymax",ymax);
+        }
+}
 
 
 
@@ -441,7 +467,7 @@ function linePlot(data, settings){
     let inputs = defaultVal(settings.inputs, ["xs"]);
     let outputs = defaultVal(settings.outputs, ["ys"]);
     let autoScale = defaultVal(settings.autoScale,true);
-    let colors = defaultVal(settings.colors, ["red", "green", "blue", "purple", "orange"]);
+    let colors = defaultVal(settings.colors, defaultColors);
 
     let zipped = zip(inputs,outputs);
     
@@ -463,23 +489,74 @@ function linePlot(data, settings){
     this.ctx.strokeStyle="black";
 
     // rescale canvas if desired
-    let ga = this.getAttribute.bind(this);
-    let sa = this.setAttribute.bind(this);
-    if(autoScale === true){
-        if(ga("xmin") != xmin || ga("xmax") != xmax || ga("ymin") != ymin || ga("ymax") != ymax){
-                sa("xmin",xmin);sa("xmax",xmax);sa("ymin",ymin);sa("ymax",ymax);
-        }
+    // find a better way...
+    if(autoScale && !this.alreadyAutoScaledLinePlot){
+        this.alreadyAutoScaledLinePlot = true;
+        rescaleAxes.bind(this)(xmin,xmax,ymin,ymax);
     }
 
-    drawLegendAxesAndTitle.bind(this)(settings);
+    this.setAttribute("default-axes-on","false");
+    this.drawDefaultAxes();
+    drawLegendAxesLabelsAndTitle.bind(this)(settings);
 }
+
+
+
+
+
 
 function barPlot(data, settings){
+    let autoScale = defaultVal(settings.autoScale,true)
+    let colors = defaultVal(settings.colors, defaultColors);
 
-    drawLegendAxesAndTitle.bind(this)(settings);
+    if(autoScale){
+        rescaleAxes.bind(this)(0,1,0,Math.max(...data.heights))
+    }
+
+    // y-axis
+    this.drawAxis(0,0,
+        0,this.ymax,
+        -.06,-this.ymax/20,
+        Math.PI/8,
+        5,
+        undefined,
+        0,this.ymax)
+
+    // x-axis
+    this.drawAxis(0,0,
+        this.xmax,0,
+        -0.03,-this.ymax/10,
+        0,
+        data.bars.length+1,
+        data.bars.concat(""))
+
+
+    for(let i=0; i<data.heights.length; i++){
+        let w = 1/(data.heights.length+2);
+        let pos = ((i+1)/(data.heights.length+1)) - (w/2);
+        this.ctx.beginPath();
+        this.ctx.fillStyle = colors[i%colors.length];
+        this.rect(pos,0,w,data.heights[i]);
+        if(this.mouseInRect(pos,0,pos+w,0+data.heights[i])){
+            this.ctx.lineWidth=3;
+            this.ctx.stroke();
+        }
+        this.ctx.fill();
+    }
+    this.ctx.lineWidth=1;
+    this.ctx.fillStyle = "black";
+    
+    this.setAttribute("default-axes-on","false");
+    this.setAttribute("controls","false");
+    drawLegendAxesLabelsAndTitle.bind(this)(settings);
 }
 
+
+
+
+
 function histogram(data){
+    this.setAttribute("default-axes-on","false");
 
 }
 

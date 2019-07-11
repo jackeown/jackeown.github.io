@@ -3,17 +3,12 @@
 
 // helpers:
 
+let defaultColors = ["red", "green", "blue", "purple", "orange"];
+
 function zip(xs,ys){
     return xs.map((v,i)=>[v,ys[i]])
 }
 
-window.watchedFunctionHistory = new Set();
-function callIfNotAlreadyCalled(f){
-    if(!window.watchedFunctionHistory.has(f)){
-        f();
-    }
-    window.watchedFunctionHistory.add(f);
-}
 
 
 function defaultVal(original,def){
@@ -63,16 +58,16 @@ function drawLegend(labels, settings){
     }
 }
 
-function drawLegendAxesAndTitle(settings){
+function drawLegendAxesLabelsAndTitle(settings){
     let title = defaultVal(settings.title, "Untitled");
     let xLabel = defaultVal(settings.xLabel, "input");
     let yLabel = defaultVal(settings.yLabel, "output");
-    let outputs = defaultVal(settings.outputs, ["ys"]);
-    let colors = defaultVal(settings.colors, ["red", "green", "blue", "purple", "orange"]);
+    let legendLabels = defaultVal(settings.legendLabels, ["ys"]);
+    let colors = defaultVal(settings.colors, defaultColors);
 
     // draw legend
-    let legendLabels = outputs.map((field,i) => {
-        return {text: field, color: colors[i]};
+    legendLabels = legendLabels.map((field,i) => {
+        return {text: field, color: colors[i%colors.length]};
     })
     drawLegend.bind(this)(legendLabels);
 
@@ -95,8 +90,13 @@ function drawLegendAxesAndTitle(settings){
 
 
 
-
-
+function rescaleAxes(xmin,xmax,ymin,ymax){
+        let ga = this.getAttribute.bind(this);
+        let sa = this.setAttribute.bind(this);
+        if(this.xmin != xmin || this.xmax != xmax || this.ymin != ymin || this.ymax != ymax){
+                sa("xmin",xmin);sa("xmax",xmax);sa("ymin",ymin);sa("ymax",ymax);
+        }
+}
 
 
 
@@ -110,7 +110,7 @@ function linePlot(data, settings){
     let inputs = defaultVal(settings.inputs, ["xs"]);
     let outputs = defaultVal(settings.outputs, ["ys"]);
     let autoScale = defaultVal(settings.autoScale,true);
-    let colors = defaultVal(settings.colors, ["red", "green", "blue", "purple", "orange"]);
+    let colors = defaultVal(settings.colors, defaultColors);
 
     let zipped = zip(inputs,outputs);
     
@@ -132,23 +132,74 @@ function linePlot(data, settings){
     this.ctx.strokeStyle="black";
 
     // rescale canvas if desired
-    let ga = this.getAttribute.bind(this);
-    let sa = this.setAttribute.bind(this);
-    if(autoScale === true){
-        if(ga("xmin") != xmin || ga("xmax") != xmax || ga("ymin") != ymin || ga("ymax") != ymax){
-                sa("xmin",xmin);sa("xmax",xmax);sa("ymin",ymin);sa("ymax",ymax);
-        }
+    // find a better way...
+    if(autoScale && !this.alreadyAutoScaledLinePlot){
+        this.alreadyAutoScaledLinePlot = true;
+        rescaleAxes.bind(this)(xmin,xmax,ymin,ymax);
     }
 
-    drawLegendAxesAndTitle.bind(this)(settings);
+    this.setAttribute("default-axes-on","false");
+    this.drawDefaultAxes();
+    drawLegendAxesLabelsAndTitle.bind(this)(settings);
 }
+
+
+
+
+
 
 function barPlot(data, settings){
+    let autoScale = defaultVal(settings.autoScale,true)
+    let colors = defaultVal(settings.colors, defaultColors);
 
-    drawLegendAxesAndTitle.bind(this)(settings);
+    if(autoScale){
+        rescaleAxes.bind(this)(0,1,0,Math.max(...data.heights))
+    }
+
+    // y-axis
+    this.drawAxis(0,0,
+        0,this.ymax,
+        -.06,-this.ymax/20,
+        Math.PI/8,
+        5,
+        undefined,
+        0,this.ymax)
+
+    // x-axis
+    this.drawAxis(0,0,
+        this.xmax,0,
+        -0.03,-this.ymax/10,
+        0,
+        data.bars.length+1,
+        data.bars.concat(""))
+
+
+    for(let i=0; i<data.heights.length; i++){
+        let w = 1/(data.heights.length+2);
+        let pos = ((i+1)/(data.heights.length+1)) - (w/2);
+        this.ctx.beginPath();
+        this.ctx.fillStyle = colors[i%colors.length];
+        this.rect(pos,0,w,data.heights[i]);
+        if(this.mouseInRect(pos,0,pos+w,0+data.heights[i])){
+            this.ctx.lineWidth=3;
+            this.ctx.stroke();
+        }
+        this.ctx.fill();
+    }
+    this.ctx.lineWidth=1;
+    this.ctx.fillStyle = "black";
+    
+    this.setAttribute("default-axes-on","false");
+    this.setAttribute("controls","false");
+    drawLegendAxesLabelsAndTitle.bind(this)(settings);
 }
 
+
+
+
+
 function histogram(data){
+    this.setAttribute("default-axes-on","false");
 
 }
 
