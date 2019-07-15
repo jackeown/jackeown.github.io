@@ -37,8 +37,15 @@ class EasyCanvas extends HTMLElement {
             let sx = linearScale(0,this.canvas.width, this.xmin-px, this.xmax+px)
             let sy = linearScale(0,this.canvas.height, this.ymax+py, this.ymin-py)
 
-            this.mouseX = sx(e.offsetX*window.devicePixelRatio)
-            this.mouseY = sy(e.offsetY*window.devicePixelRatio)
+            this.mouseX = sx(e.offsetX*this.dpr)
+            this.mouseY = sy(e.offsetY*this.dpr)
+            
+        }.bind(this));
+
+        this.canvas.addEventListener("mouseleave",function(e){
+            // this.mouseDown = false;
+            // this.mouseX = undefined;
+            // this.mouseY = undefined;
         }.bind(this));
 
 
@@ -98,8 +105,6 @@ class EasyCanvas extends HTMLElement {
 
 
 
-
-
         this.shadow.appendChild(this.canvas);
         this.ctx = this.canvas.getContext("2d");
         
@@ -110,18 +115,21 @@ class EasyCanvas extends HTMLElement {
         
         // config
         this.framerate = 24;
-        this.padding = 70;
+        this.padding = 120;
         this.xmin = -100;
         this.xmax = 100;
         
         this.ymin = -100;
         this.ymax = 100;
+
+        this.dpr = 2.0;
         
         this.defaultAxesOn = true;
         this.mouseDown = false; // left mouse button is not clicked in when the webpage loads...
         
         // Constantly be redrawing the plot:
         // this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
+        this.updateScales();
         this.renderPlot();
 
         // bind all methods from easyCanvasHotAndReady
@@ -132,15 +140,14 @@ class EasyCanvas extends HTMLElement {
     }
 
 
-
-    
     attributeChangedCallback(name, oldValue, newValue) {
-        if(oldValue != newValue)
+        if(this.debug)
             console.log(`custom element attribute "${name}" has changed from "${oldValue}" to "${newValue}"`);
         
         // simple numeric
         if(["xmin", "xmax", "ymin", "ymax", "padding", "framerate"].includes(name)){
             this[name] = +newValue;
+            this.updateScales();
         }
         
         // simple boolean
@@ -156,8 +163,13 @@ class EasyCanvas extends HTMLElement {
 
             }
         }
+    }
 
-
+    updateScales(){
+        this.scaleX = linearScale(this.xmin, this.xmax, this.padding, this.canvas.width-this.padding);
+        this.scaleY = linearScale(this.ymin, this.ymax, this.canvas.height-this.padding, this.padding);
+        this.scaleXInverse = linearScale(this.padding, this.canvas.width-this.padding, this.xmin, this.xmax);
+        this.scaleYInverse = linearScale(this.canvas.height-this.padding, this.padding, this.ymin, this.ymax);
     }
 
 
@@ -169,47 +181,67 @@ class EasyCanvas extends HTMLElement {
         let style_width = +s.getPropertyValue("width").slice(0, -2);
 
         //scale the canvas
-        let heightDiff = Math.abs(this.canvas.height - style_height*window.devicePixelRatio)
-        let widthDiff = Math.abs(this.canvas.width - style_width*window.devicePixelRatio)
+        let heightDiff = Math.abs(this.canvas.height - style_height*this.dpr)
+        let widthDiff = Math.abs(this.canvas.width - style_width*this.dpr)
         if(Math.max(heightDiff, widthDiff) > 10){
-            this.canvas.height = style_height * window.devicePixelRatio;
-            this.canvas.width = style_width * window.devicePixelRatio;
+            this.canvas.height = style_height*this.dpr;
+            this.canvas.width = style_width*this.dpr;
             this.DPIHasBeenSet = true;
         }
     }
 
 
+    linkInfo(keys, link){
+        this.linkedKeys = keys;
+        this.link = link;
+    }
+
     renderPlot(){
-        requestAnimationFrame(this.renderPlot.bind(this))
-
         // will be false if this.lastFrame is undefined
-        if(new Date() - this.lastFrame < 1000/this.framerate){
-            return
-        }
+        let ready = (new Date() - this.lastFrame > 1000/this.framerate)
+        ready = (ready || this.lastFrame === undefined)
 
-        if(this.DPIHasBeenSet){
+        
+        if(this.DPIHasBeenSet && ready){
+            this.updateScales();
+            // linked axes and other info maybe...
+            if(this.link !== undefined){
+                for(let key of this.linkedKeys){
+                    if(this.link[key] !== undefined && this.mouseX === undefined){
+                        this.setAttribute(key,this.link[key]);
+                    }
+                }
+            }
+
             this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
-            this.scaleX = linearScale(this.xmin, this.xmax, this.padding, this.canvas.width-this.padding);
-            this.scaleY = linearScale(this.ymin, this.ymax, this.canvas.height-this.padding, this.padding);
-            this.scaleXInverse = linearScale(this.padding, this.canvas.width-this.padding, this.xmin, this.xmax);
-            this.scaleYInverse = linearScale(this.canvas.height-this.padding, this.padding, this.ymin, this.ymax);
-
             if(this.defaultAxesOn){
                 this.drawDefaultAxes();
             }
-
             if(this.drawingLoop){
                 this.drawingLoop();
             }
+
+            // linked axes and other info maybe...
+            if(this.link !== undefined){
+                for(let key of this.linkedKeys){
+                    if(this.mouseX !== undefined){
+                        this.link[key] = this[key];
+                    }
+                }
+            }
+
             this.lastFrame = new Date();
         }
+
+
+        requestAnimationFrame(this.renderPlot.bind(this));
     }
 
 
     drawLabel(text, x, y, theta, font=undefined){
         let oldFont = this.ctx.font;
         if(font == undefined){
-            this.ctx.font = "11pt arial"
+            this.ctx.font = "20pt arial"
         }
         else{
             this.ctx.font = font;
@@ -228,17 +260,20 @@ class EasyCanvas extends HTMLElement {
         let r = Math.sqrt(Math.pow(y2-y1,2) + Math.pow(x2-x1,2));
         let theta = Math.asin((y2-y1)/r);
 
+
+        let oldLineWidth = this.ctx.lineWidth;
+        this.ctx.lineWidth = 2;
         this.ctx.beginPath();
-        this.ctx.moveTo(this.scaleX(x1), this.scaleY(y1));
-        this.ctx.lineTo(this.scaleX(x2), this.scaleY(y2));
+        this.ctx.moveTo(parseInt(this.scaleX(x1)), parseInt(this.scaleY(y1)));
+        this.ctx.lineTo(parseInt(this.scaleX(x2)), parseInt(this.scaleY(y2)));
         this.ctx.stroke();
         for(let i=1; i<=nTicks; i++){
             let x = this.scaleX(x1 + (x2-x1)*(i/nTicks));
             let y = this.scaleY(y1 + (y2-y1)*(i/nTicks));
 
             this.ctx.beginPath();
-            this.ctx.moveTo(x-5*Math.cos(theta-Math.PI/2), y+5*Math.sin(theta-Math.PI/2));
-            this.ctx.lineTo(x+5*Math.cos(theta-Math.PI/2), y-5*Math.sin(theta-Math.PI/2));
+            this.ctx.moveTo(x-10*Math.cos(theta-Math.PI/2), y+10*Math.sin(theta-Math.PI/2));
+            this.ctx.lineTo(x+10*Math.cos(theta-Math.PI/2), y-10*Math.sin(theta-Math.PI/2));
             this.ctx.stroke();
 
             // labelXOffset and labelYOffset are in user coordinates (not canvas coordinates)
@@ -255,6 +290,7 @@ class EasyCanvas extends HTMLElement {
                 console.error("drawAxis method of EasyCanvas object must be called with 'labels' or both 'scaleStart' and 'scaleEnd'");
             }
         }
+        this.ctx.lineWidth = oldLineWidth;
     }
 
     drawDefaultAxes(){
@@ -262,37 +298,43 @@ class EasyCanvas extends HTMLElement {
         let yTicks = 5;
 
         // x-axis
-        let labelYOffset = this.scaleYInverse(40)-this.scaleYInverse(0);
+        let labelXOffset = this.scaleXInverse(-20)-this.scaleXInverse(0);
+        let labelYOffset = this.scaleYInverse(60)-this.scaleYInverse(0);
         this.drawAxis(this.xmin,this.ymin,
                         this.xmax,this.ymin, 
-                        0, labelYOffset,
-                        Math.PI/4,
+                        labelXOffset, labelYOffset,
+                        Math.PI/8,
                         xTicks,
                         undefined,
                         this.xmin,
                         this.xmax)
     
         // y-axis
-        let labelXOffset = this.scaleXInverse(-30)-this.scaleXInverse(0);
+        labelXOffset = this.scaleXInverse(-40)-this.scaleXInverse(0);
+        labelYOffset = this.scaleYInverse(30)-this.scaleYInverse(0);
         this.drawAxis(this.xmin,this.ymin,
                         this.xmin,this.ymax, 
-                        labelXOffset,0,
-                        Math.PI/4,
+                        labelXOffset,labelYOffset,
+                        Math.PI/3,
                         yTicks,
                         undefined,
                         this.ymin,
                         this.ymax)
     }
 
-    drawLine(data){
+    drawLine(data,lineWidth=2){
+        let xs = data.xs.map(x => this.scaleX(x));
+        let ys = data.ys.map(y => this.scaleY(y));
+
+        let oldLineWidth = this.ctx.lineWidth;
+        this.ctx.lineWidth = lineWidth;
         this.ctx.beginPath();
-        this.ctx.moveTo(this.scaleX(data.xs[0]), this.scaleY(data.ys[0]));
-        for(let i=1; i<data.xs.length; i++){
-            let x = this.scaleX(data.xs[i])
-            let y = this.scaleY(data.ys[i])
-            this.ctx.lineTo(x,y);
+        this.ctx.moveTo(xs[0],ys[0]);
+        for(let i=1; i<xs.length; i++){
+            this.ctx.lineTo(xs[i],ys[i]);
         }
         this.ctx.stroke();
+        this.ctx.lineWidth = oldLineWidth;
     }
 
     // in custom coordinates, not canvas coordinates
@@ -360,13 +402,11 @@ customElements.define('easy-canvas', EasyCanvas);
 
 // helpers:
 
-let defaultColors = ["red", "green", "blue", "purple", "orange"];
+let defaultColors = ["red", "green","orange", "blue", "purple", "yellow"];
 
 function zip(xs,ys){
     return xs.map((v,i)=>[v,ys[i]])
 }
-
-
 
 function defaultVal(original,def){
     if(original === undefined){
@@ -375,11 +415,52 @@ function defaultVal(original,def){
     return original;
 }
 
+function dist(x1,y1,x2,y2){
+    return Math.sqrt(Math.pow(x2-x1,2) + Math.pow(y2-y1,2));
+}
+
+
+function drawTooltip(x,y,info){
+    let padding = 20;
+    let lineHeight = 20;
+    let letterWidth = 12;
+
+    let keys = Object.keys(info);
+    let values = Object.values(info);
+    let labels = zip(keys,values).map(pair => [`${pair[0]}: `,`${pair[1]}`])
+
+    x = this.scaleX(x);
+    y = this.scaleY(y);
+
+    // Draw Rectangle 
+    let h = labels.length * lineHeight;
+    h += padding * (labels.length+1);
+    let w = Math.max(...labels.map(pair => pair[0].length + pair[1].length))*letterWidth + 2*padding;
+
+    let oldFillStyle = this.ctx.fillStyle;
+    this.ctx.fillStyle="rgba(255,255,255,0.7)";
+    this.ctx.beginPath();
+    this.ctx.rect(x, y, w, h);
+    this.ctx.stroke();
+    this.ctx.fill();
+    this.ctx.fillStyle=oldFillStyle;
+
+    // draw text for individual labels
+    for(let [i, label] of labels.entries()){
+        let x1 = x + padding;
+        let y1 = y + padding*(i+1) + lineHeight*(i+1);
+        this.drawLabel(label[0], x1, y1,undefined,font="bold 18pt arial");
+        
+        x1 += (letterWidth*label[0].length);
+        this.drawLabel(label[1],x1,y1,undefined,font="18pt arial");
+    }
+}
+
 function drawLegend(labels, settings){
-    let padding = 10;
-    let lineHeight = 10;
-    let letterWidth = 7;
-    let patchSize = 10;
+    let padding = 20;
+    let lineHeight = 20;
+    let letterWidth = 14;
+    let patchSize = 20;
 
     // Rectangle 
     let h = labels.length * lineHeight;
@@ -426,24 +507,24 @@ function drawLegendAxesLabelsAndTitle(settings){
     legendLabels = legendLabels.map((field,i) => {
         return {text: field, color: colors[i%colors.length]};
     })
+    legendLabels = legendLabels.filter(x => x.text != "")
     drawLegend.bind(this)(legendLabels);
 
     // draw title
-    let titleX = this.canvas.width/2 - (title.length/2)*16;
-    let titleY = 30;
-    this.drawLabel(title, titleX,titleY, 0, "24pt arial");
+    let titleX = this.canvas.width/2 - (title.length/2)*32;
+    let titleY = 60;
+    this.drawLabel(title, titleX,titleY, 0, "48pt arial");
 
     // draw x-axis label
-    let xLabelX = this.canvas.width/2 - (xLabel.length/2)*10;
-    let xLabelY = this.canvas.height-10;
-    this.drawLabel(xLabel, xLabelX, xLabelY,0, "bold 12pt arial");
+    let xLabelX = this.canvas.width/2 - (xLabel.length/2)*16;
+    let xLabelY = this.canvas.height-20;
+    this.drawLabel(xLabel, xLabelX, xLabelY,0, "bold 24pt arial");
 
     // draw y-axis label
-    let yLabelX = 20;
-    let yLabelY = this.canvas.height/2 + (yLabel.length/2)*10;
-    this.drawLabel(yLabel, yLabelX, yLabelY,Math.PI/2, "bold 12pt arial");
+    let yLabelX = 40;
+    let yLabelY = this.canvas.height/2 + (yLabel.length/2)*16;
+    this.drawLabel(yLabel, yLabelX, yLabelY,Math.PI/2, "bold 24pt arial");
 }
-
 
 
 
@@ -460,25 +541,109 @@ function rescaleAxes(xmin,xmax,ymin,ymax){
 
 
 
+function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
+    // make sure inputs has exactly one unique element.
+    if(new Set(inputs).size != 1){
+        console.log("in order to have tooltips on a line plot, all inputs must be the same.");
+        return false;
+    }
+
+    let xs = data[inputs[0]];
+    
+    // get closest point to mouse.
+    let mx = this.mouseX;
+    let my = this.mouseY;
+    // binary search over x
+    let low = 0;
+    let high = xs.length-1;
+    let guess = Math.round((high+low)/2);
+    while(high - low > 1){
+        if(xs[guess] > mx){
+            high = guess;
+        }
+        else{
+            low = guess;
+        }
+        guess = Math.round((high+low)/2);
+    }
+
+    let index;
+    if(Math.abs(xs[high] - mx) < Math.abs(xs[low] - mx)){
+        index = high;
+    }
+    else{
+        index = low;
+    }
+
+
+
+    // find closest y-coordinate
+    let output = undefined;
+    let smallestDist = Infinity;
+    for(let out of outputs){
+        let d = dist(xs[index],data[out][index],mx,my)
+        if(d < smallestDist){
+            output = out;
+            smallestDist = d;
+        }
+    }
+
+//     console.log(`
+// mx: ${mx},
+// my: ${my},
+// index: ${index},
+// xs[index]: ${xs[index]},
+// output: ${output},
+// data[output]: ${data[output]}
+// ###################################
+// `);
+
+    // ensure it is within epsilon of mouse in canvas (c) coordinates.
+    let cPointX = this.scaleX(xs[index]);
+    let cPointY = this.scaleY(data[output][index]);
+    let cMouseX = this.scaleX(mx);
+    let cMouseY = this.scaleY(my);
+    if(dist(cPointX,cPointY,cMouseX, cMouseY) > epsilon){
+        return false;
+    }
+
+    // draw tooltip info at that point.
+    let x = xs[index];
+    let y = data[output][index];
+    let info = {};
+    for(let tooltip of tooltips){
+        if(isNaN(data[tooltip][index])){
+            info[tooltip] = data[tooltip][index].toString().slice(0,8) + "...";
+        }
+        else{
+            info[tooltip] = data[tooltip][index].toFixed(3);
+        }
+    }
+
+    drawTooltip.bind(this)(x,y,info);
+}
+
+
+
 
 // Actual exported functions
-
 function linePlot(data, settings){
     let inputs = defaultVal(settings.inputs, ["xs"]);
     let outputs = defaultVal(settings.outputs, ["ys"]);
-    let autoScale = defaultVal(settings.autoScale,true);
+    let autoScale = defaultVal(settings.autoScale, true);
     let colors = defaultVal(settings.colors, defaultColors);
-
+    let lineWidth = defaultVal(settings.lineWidth, 2);
+    let tooltips = defaultVal(settings.tooltips, []);
+    
     let zipped = zip(inputs,outputs);
     
     // draw lines and find extend of data.
     let xmin = ymin = Infinity;
     let xmax = ymax = -Infinity;
     for(let [i,[x,y]] of zipped.entries()){
-        // lines
         this.ctx.strokeStyle = colors[i%colors.length];
         line = {xs: data[x], ys: data[y]};
-        this.drawLine(line);
+        this.drawLine(line, lineWidth);
 
         // find extent of data
         xmin = Math.min(Math.min(...data[x]),xmin);
@@ -495,12 +660,13 @@ function linePlot(data, settings){
         rescaleAxes.bind(this)(xmin,xmax,ymin,ymax);
     }
 
-    this.setAttribute("default-axes-on","false");
-    this.drawDefaultAxes();
+    if(tooltips.length != 0 && this.mouseX !== undefined){
+        linePlotTooltip.bind(this)(data, inputs,outputs,tooltips);
+    }
+
+    // legend, plot title, and axes labels.
     drawLegendAxesLabelsAndTitle.bind(this)(settings);
 }
-
-
 
 
 
@@ -514,19 +680,23 @@ function barPlot(data, settings){
     }
 
     // y-axis
+    let labelXOffset = this.scaleXInverse(-50) - this.scaleXInverse(0)
+    let labelYOffset = this.scaleYInverse(40) - this.scaleYInverse(0)
     this.drawAxis(0,0,
         0,this.ymax,
-        -.06,-this.ymax/20,
-        Math.PI/8,
+        labelXOffset,labelYOffset,
+        Math.PI/3,
         5,
         undefined,
         0,this.ymax)
 
     // x-axis
+    labelXOffset = this.scaleXInverse(-45) - this.scaleXInverse(0)
+    labelYOffset = this.scaleYInverse(65) - this.scaleYInverse(0)
     this.drawAxis(0,0,
         this.xmax,0,
-        -0.03,-this.ymax/10,
-        0,
+        labelXOffset,labelYOffset,
+        Math.PI/10,
         data.bars.length+1,
         data.bars.concat(""))
 
@@ -553,8 +723,6 @@ function barPlot(data, settings){
 
 
 
-
-
 function histogram(data){
     this.setAttribute("default-axes-on","false");
 
@@ -563,7 +731,8 @@ function histogram(data){
 module.exports = {
     "linePlot": linePlot,
     "barPlot": barPlot,
-    "histogram": histogram
+    "histogram": histogram,
+    "drawTooltip": drawTooltip
 }
 
 // module.exports = [

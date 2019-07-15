@@ -1,0 +1,94 @@
+---
+layout: default
+author: Jack
+title: Linked plots in easyCanvas.js
+---
+
+<script src="/assets/js/easyCanvas/easyCanvas.bundle.js"></script>
+
+
+<h1>Linked Plots in easyCanvas.js</h1>
+
+
+<easy-canvas id="example1"></easy-canvas>
+<easy-canvas id="example2"></easy-canvas>
+
+<script>
+    function range(a,b,delta=0.01){
+        let l = [];
+        for(let i=a;i<b;i+=delta){
+            l.push(i);
+        }
+        return l;
+    }
+
+    const data1 = {
+        xs: range(0,2*Math.PI),
+        sine: range(0,2*Math.PI).map(v => Math.sin(v))
+    }
+
+    const data2 = {
+        xs: range(0,2*Math.PI),
+        cosine: range(0,2*Math.PI).map(v => Math.cos(v))
+    }
+    
+
+    const settings1 = {
+        title: "Sine",
+        xLabel: "x",
+        yLabel: "sine(x)",
+        inputs: ["xs"],
+        outputs: ["sine"],
+        legendLabels: ["Sine"]
+    }
+
+    const settings2 = {
+        title: "Cosine",
+        xLabel: "x",
+        yLabel: "cosine(x)",
+        inputs: ["xs"],
+        outputs: ["cosine"],
+        legendLabels: ["Cosine"]
+    }
+
+    // ec1 because this is the first example canvas
+    const ec1 = document.getElementById("example1");
+    const ec2 = document.getElementById("example2");
+
+    // will contain linked axes info
+    let link = {};
+
+    ec1.drawingLoop = function(){
+        if(link.xmin !== undefined && this.mouseX === undefined){
+            this.setAttribute("xmin",link.xmin);
+            this.setAttribute("xmax",link.xmax);
+            // this.setAttribute("ymin",link.ymin);
+            // this.setAttribute("ymax",link.ymax);
+        }
+        this.hotAndReady.linePlot(data1, settings1);
+        if(this.mouseX !== undefined){
+            link.xmin = this.xmin;
+            link.xmax = this.xmax;
+            // link.ymin = this.ymin;
+            // link.ymax = this.ymax;
+        }
+    }.bind(ec1);
+
+    ec2.drawingLoop = function(){
+        if(link.xmin !== undefined && this.mouseX === undefined){
+            this.setAttribute("xmin",link.xmin);
+            this.setAttribute("xmax",link.xmax);
+            // this.setAttribute("ymin",link.ymin);
+            // this.setAttribute("ymax",link.ymax);
+        }
+        this.hotAndReady.linePlot(data2, settings2);
+        if(this.mouseX !== undefined){
+            link.xmin = this.xmin;
+            link.xmax = this.xmax;
+            // link.ymin = this.ymin;
+            // link.ymax = this.ymax;
+        }
+    }.bind(ec2);
+
+</script>
+

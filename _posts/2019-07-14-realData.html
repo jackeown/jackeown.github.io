@@ -1,0 +1,70 @@
+---
+layout: default
+author: Jack
+title: Real Data
+---
+
+<script src="/assets/js/easyCanvas/easyCanvas.bundle.js"></script>
+
+
+<h1>Real Data in easyCanvas.js</h1>
+
+
+<easy-canvas id="example1"></easy-canvas>
+<easy-canvas id="example2"></easy-canvas>
+
+<script>
+    function range(a,b,delta=(Math.PI*2/1000)){
+        let l = [];
+        for(let i=a;i<b;i+=delta){
+            l.push(i);
+        }
+        return l;
+    }
+
+    const data = {
+        xs: range(0,2*Math.PI),
+        sine: range(0,2*Math.PI).map(v => Math.sin(v)),
+        cosine: range(0,2*Math.PI).map(v => Math.cos(v))
+    }
+
+    const settings1 = {
+        title: "Sine and Cosine",
+        xLabel: "x",
+        yLabel: "",
+        inputs: ["xs","xs"],
+        outputs: ["sine","cosine"],
+        legendLabels: ["Sine","Cosine"],
+        tooltips: ["cosine", "sine"]
+    }
+
+    const settings2 = {
+        title: "Cosine",
+        xLabel: "x",
+        yLabel: "cosine(x)",
+        inputs: ["xs"],
+        outputs: ["cosine"],
+        legendLabels: ["Cosine"],
+        tooltips: ["sine"]
+    }
+
+
+    // ec1 because this is the first example canvas
+    const ec1 = document.getElementById("example1");
+    const ec2 = document.getElementById("example2");
+
+    // will contain linked axes info
+    let link = {};
+    ec1.linkInfo(["xmin","xmax","ymin","ymax"], link);
+    ec2.linkInfo(["xmin","xmax","ymin","ymax"], link);
+
+    ec1.drawingLoop = function(){
+        this.hotAndReady.linePlot(data, settings1);
+    }.bind(ec1);
+
+    ec2.drawingLoop = function(){
+        this.hotAndReady.linePlot(data, settings2);
+    }.bind(ec2);
+
+</script>
+
