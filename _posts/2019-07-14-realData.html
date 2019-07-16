@@ -29,7 +29,7 @@ title: Real Data
 
 
 
-    fetch("http://192.168.0.111:4000/assets/data/data.json")
+    fetch("http://jackeown.github.com/assets/data/data.json")
         .then(data => data.json())
         .then(data => {window.data = transposeDict(data)});
 
@@ -102,7 +102,7 @@ title: Real Data
     pressuresCanvas.drawingLoop = function(){
         let t2 = window.data["timestamp"][400]
         let t1 = window.data["timestamp"][200]
-        
+
         this.ctx.beginPath();
         this.rect(t1,this.ymin,t2-t1,this.ymax-this.ymin)
         this.ctx.fillStyle = "rgba(255,0,0,0.6)";
