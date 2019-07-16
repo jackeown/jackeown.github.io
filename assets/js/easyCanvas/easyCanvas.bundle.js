@@ -1,5 +1,13 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-var hotAndReadyFuncs = require('./easyCanvasHotAndReady.js');
+const hotAndReadyFuncs = require('./easyCanvasHotAndReady.js');
+const helpers = require('./helpers.js');
+
+defaultColors = helpers.defaultColors;
+zip = helpers.zip;
+defaultVal = helpers.defaultVal;
+defaultVals = helpers.defaultVals;
+dist = helpers.dist;
+getTimeLabel = helpers.getTimeLabel;
 
     
 // d for domain, r for range...
@@ -43,9 +51,9 @@ class EasyCanvas extends HTMLElement {
         }.bind(this));
 
         this.canvas.addEventListener("mouseleave",function(e){
-            // this.mouseDown = false;
-            // this.mouseX = undefined;
-            // this.mouseY = undefined;
+            this.mouseDown = false;
+            this.mouseX = undefined;
+            this.mouseY = undefined;
         }.bind(this));
 
 
@@ -64,37 +72,44 @@ class EasyCanvas extends HTMLElement {
         }.bind(this)
     
         this.zoomingControl = function(e){
+            let xdist = this.xmax - this.xmin;
+            let ydist = this.ymax - this.ymin;
+          
             let sensitivity = 0.001
-            let zoomAmount = (e.deltaY*sensitivity)*Math.min(this.xmax-this.xmin,this.ymax-this.ymin);
+            let zoomAmount = (e.deltaY*sensitivity);
     
-            let px = (this.mouseX - this.xmin) / (this.xmax-this.xmin)
-            let py = (this.mouseY - this.ymin) / (this.ymax-this.ymin)
+            let px = (this.mouseX - this.xmin) / xdist
+            let py = (this.mouseY - this.ymin) / ydist
     
             // make sure the zoom makes sense and there aren't weird numerical issues.
             // also make sure we don't zoom in too far...
             if(isNaN(px) || isNaN(py) || isNaN(zoomAmount) || 
-                (zoomAmount<0 && Math.abs(zoomAmount) < 0.0000001)){
+                (zoomAmount<0 && Math.abs(zoomAmount) < 0.000001)){
                 return
             }
     
-            let aspectRatio = (this.xmax-this.xmin)/(this.ymax-this.ymin)
+            let aspectRatio = xdist / ydist;
             if(this.mouseX > this.xmin && this.mouseY > this.ymin){
+                zoomAmount *= Math.max(xdist,ydist);
                 this.xmin -= px*zoomAmount;
                 this.xmax += (1-px)*zoomAmount;
                 this.ymin -= py*zoomAmount/aspectRatio;
                 this.ymax += (1-py)*zoomAmount/aspectRatio;
             }
-            if(this.mouseY < this.ymin){
+            else if(this.mouseY < this.ymin){
+                zoomAmount *= xdist;
                 this.xmin -= px*zoomAmount;
                 this.xmax += (1-px)*zoomAmount;
             }
-            if(this.mouseX < this.xmin){
+            else if(this.mouseX < this.xmin){
+                zoomAmount *= ydist;
                 this.ymin -= py*zoomAmount;
                 this.ymax += (1-py)*zoomAmount;
             }
     
             e.preventDefault();
         }.bind(this)
+
 
 
         // panning controls
@@ -131,6 +146,11 @@ class EasyCanvas extends HTMLElement {
         // this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
         this.updateScales();
         this.renderPlot();
+        setInterval(function(){
+            if(new Date() - this.lastFrame > 1000 || this.lastFrame === undefined){
+                this.renderPlot();
+            }
+        }.bind(this),200);
 
         // bind all methods from easyCanvasHotAndReady
         this.hotAndReady = {}
@@ -255,11 +275,14 @@ class EasyCanvas extends HTMLElement {
     }
 
 
-    drawAxis(x1,y1, x2,y2, labelXOffset, labelYOffset, labelTheta, nTicks, 
-                labels=undefined, scaleStart=undefined, scaleEnd=undefined){
+    drawAxis(settings){
+        let {x1,y1,x2,y2} = settings
+        let {labelXOffset,labelYOffset,labelTheta,nTicks} = settings
+        let {labels,scaleStart,scaleEnd} = settings
+        let {isDatetime} = settings
+    
         let r = Math.sqrt(Math.pow(y2-y1,2) + Math.pow(x2-x1,2));
         let theta = Math.asin((y2-y1)/r);
-
 
         let oldLineWidth = this.ctx.lineWidth;
         this.ctx.lineWidth = 2;
@@ -283,8 +306,15 @@ class EasyCanvas extends HTMLElement {
                 this.drawLabel(labels[i-1],labelX, labelY, labelTheta);
             }
             else if(!isNaN(scaleStart) && !isNaN(scaleEnd)){
-                let label = scaleStart + (scaleEnd-scaleStart)*(i/nTicks);
-                this.drawLabel(label.toFixed(2),labelX, labelY, labelTheta);
+                let label;
+                if(isDatetime){
+                    label = helpers.getTimeLabel(i,nTicks,scaleStart,scaleEnd);
+                }
+                else{
+                    label = scaleStart + (scaleEnd-scaleStart)*(i/nTicks);
+                    label = label.toFixed(2);
+                }
+                this.drawLabel(label,labelX, labelY, labelTheta);
             }
             else{
                 console.error("drawAxis method of EasyCanvas object must be called with 'labels' or both 'scaleStart' and 'scaleEnd'");
@@ -293,33 +323,46 @@ class EasyCanvas extends HTMLElement {
         this.ctx.lineWidth = oldLineWidth;
     }
 
-    drawDefaultAxes(){
-        let xTicks = 10;
-        let yTicks = 5;
+
+
+    drawDefaultAxes(settings){
+        settings = defaultVal(settings,{});
+        let [xTicks,yTicks] = defaultVals(settings,["xTicks","yTicks"],[10,5]);
+        let [xAxisIsTime,yAxisIsTime] = defaultVals(settings,["xAxisIsTime","yAxisIsTime"],[false,false]);
 
         // x-axis
         let labelXOffset = this.scaleXInverse(-20)-this.scaleXInverse(0);
         let labelYOffset = this.scaleYInverse(60)-this.scaleYInverse(0);
-        this.drawAxis(this.xmin,this.ymin,
-                        this.xmax,this.ymin, 
-                        labelXOffset, labelYOffset,
-                        Math.PI/8,
-                        xTicks,
-                        undefined,
-                        this.xmin,
-                        this.xmax)
+        this.drawAxis({x1:this.xmin,
+                        y1: this.ymin,
+                        x2:this.xmax,
+                        y2:this.ymin, 
+                        labelXOffset:labelXOffset,
+                        labelYOffset:labelYOffset,
+                        labelTheta: Math.PI/8,
+                        nTicks: xTicks,
+                        labels: undefined,
+                        scaleStart: this.xmin,
+                        scaleEnd: this.xmax,
+                        isDatetime: xAxisIsTime
+                    })
     
         // y-axis
         labelXOffset = this.scaleXInverse(-40)-this.scaleXInverse(0);
         labelYOffset = this.scaleYInverse(30)-this.scaleYInverse(0);
-        this.drawAxis(this.xmin,this.ymin,
-                        this.xmin,this.ymax, 
-                        labelXOffset,labelYOffset,
-                        Math.PI/3,
-                        yTicks,
-                        undefined,
-                        this.ymin,
-                        this.ymax)
+        this.drawAxis({x1:this.xmin,
+                        y1: this.ymin,
+                        x2:this.xmin,
+                        y2:this.ymax, 
+                        labelXOffset:labelXOffset,
+                        labelYOffset:labelYOffset,
+                        labelTheta: Math.PI/3,
+                        nTicks: yTicks,
+                        labels: undefined,
+                        scaleStart: this.ymin,
+                        scaleEnd: this.ymax,
+                        isDatetime: yAxisIsTime
+                    })
     }
 
     drawLine(data,lineWidth=2){
@@ -396,30 +439,21 @@ class EasyCanvas extends HTMLElement {
 // add stuff from easyCanvasHotAndReady!
 customElements.define('easy-canvas', EasyCanvas);
 
-},{"./easyCanvasHotAndReady.js":2}],2:[function(require,module,exports){
+},{"./easyCanvasHotAndReady.js":2,"./helpers.js":3}],2:[function(require,module,exports){
 /* this file contains functions for making very common plots using easyCanvas */
 /* they will be made accessable via EasyCanvas.hotAndReady */
 
 // helpers:
-
-let defaultColors = ["red", "green","orange", "blue", "purple", "yellow"];
-
-function zip(xs,ys){
-    return xs.map((v,i)=>[v,ys[i]])
-}
-
-function defaultVal(original,def){
-    if(original === undefined){
-        return def;
-    }
-    return original;
-}
-
-function dist(x1,y1,x2,y2){
-    return Math.sqrt(Math.pow(x2-x1,2) + Math.pow(y2-y1,2));
-}
+const helpers = require('./helpers.js')
+defaultColors = helpers.defaultColors;
+zip = helpers.zip;
+defaultVal = helpers.defaultVal;
+defaultVals = helpers.defaultVals;
+dist = helpers.dist;
+getTimeLabel = helpers.getTimeLabel;
 
 
+// tools
 function drawTooltip(x,y,info){
     let padding = 20;
     let lineHeight = 20;
@@ -498,9 +532,9 @@ function drawLegend(labels, settings){
 
 function drawLegendAxesLabelsAndTitle(settings){
     let title = defaultVal(settings.title, "Untitled");
-    let xLabel = defaultVal(settings.xLabel, "input");
-    let yLabel = defaultVal(settings.yLabel, "output");
-    let legendLabels = defaultVal(settings.legendLabels, ["ys"]);
+    let xLabel = defaultVal(settings.xLabel, "x");
+    let yLabel = defaultVal(settings.yLabel, "y");
+    let legendLabels = defaultVal(settings.legendLabels, ["y"]);
     let colors = defaultVal(settings.colors, defaultColors);
 
     // draw legend
@@ -634,6 +668,10 @@ function linePlot(data, settings){
     let colors = defaultVal(settings.colors, defaultColors);
     let lineWidth = defaultVal(settings.lineWidth, 2);
     let tooltips = defaultVal(settings.tooltips, []);
+    let xTicks = defaultVal(settings.xTicks, 10);
+    let yTicks = defaultVal(settings.yTicks, 5);
+    let xAxisIsTime = defaultVal(settings.xAxisIsTime, false);
+    let yAxisIsTime = defaultVal(settings.yAxisIsTime, false);
     
     let zipped = zip(inputs,outputs);
     
@@ -656,6 +694,10 @@ function linePlot(data, settings){
     // rescale canvas if desired
     // find a better way...
     if(autoScale && !this.alreadyAutoScaledLinePlot){
+        xmin = defaultVal(settings.xmin, xmin);
+        xmax = defaultVal(settings.xmax, xmax);
+        ymin = defaultVal(settings.ymin, ymin);
+        ymax = defaultVal(settings.ymax, ymax);
         this.alreadyAutoScaledLinePlot = true;
         rescaleAxes.bind(this)(xmin,xmax,ymin,ymax);
     }
@@ -663,6 +705,15 @@ function linePlot(data, settings){
     if(tooltips.length != 0 && this.mouseX !== undefined){
         linePlotTooltip.bind(this)(data, inputs,outputs,tooltips);
     }
+
+
+    this.setAttribute("default-axes-on","false");
+    this.drawDefaultAxes({
+        xTicks: xTicks,
+        yTicks: yTicks,
+        xAxisIsTime: xAxisIsTime,
+        yAxisIsTime: yAxisIsTime
+    });
 
     // legend, plot title, and axes labels.
     drawLegendAxesLabelsAndTitle.bind(this)(settings);
@@ -682,23 +733,32 @@ function barPlot(data, settings){
     // y-axis
     let labelXOffset = this.scaleXInverse(-50) - this.scaleXInverse(0)
     let labelYOffset = this.scaleYInverse(40) - this.scaleYInverse(0)
-    this.drawAxis(0,0,
-        0,this.ymax,
-        labelXOffset,labelYOffset,
-        Math.PI/3,
-        5,
-        undefined,
-        0,this.ymax)
+    this.drawAxis({x1: 0,
+                    y1: 0,
+                    x2: 0,
+                    y2: this.ymax, 
+                    labelXOffset: labelXOffset,
+                    labelYOffset: labelYOffset,
+                    labelTheta: Math.PI/3,
+                    nTicks: 5,
+                    labels: undefined,
+                    scaleStart: 0,
+                    scaleEnd: this.ymax})
+
 
     // x-axis
     labelXOffset = this.scaleXInverse(-45) - this.scaleXInverse(0)
     labelYOffset = this.scaleYInverse(65) - this.scaleYInverse(0)
-    this.drawAxis(0,0,
-        this.xmax,0,
-        labelXOffset,labelYOffset,
-        Math.PI/10,
-        data.bars.length+1,
-        data.bars.concat(""))
+
+    this.drawAxis({x1: 0,
+                    y1: 0,
+                    x2: this.xmax,
+                    y2: 0, 
+                    labelXOffset: labelXOffset,
+                    labelYOffset: labelYOffset,
+                    labelTheta: Math.PI/10,
+                    nTicks: data.bars.length+1,
+                    labels: data.bars.concat("")})
 
 
     for(let i=0; i<data.heights.length; i++){
@@ -740,4 +800,91 @@ module.exports = {
 //     ["barPlot", barPlot],
 //     ["histogram", barPlot]
 // ];
+},{"./helpers.js":3}],3:[function(require,module,exports){
+let defaultColors = ["red", "green","orange", "blue", "purple", "yellow"];
+
+function zip(xs,ys){
+    return xs.map((v,i)=>[v,ys[i]])
+}
+
+function defaultVal(original,def){
+    if(original === undefined){
+        return def;
+    }
+    return original;
+}
+
+function defaultVals(obj,keys,defs){
+    return keys.map((k,i) => defaultVal(obj[k],defs[i]));
+}
+
+function dist(x1,y1,x2,y2){
+    return Math.sqrt(Math.pow(x2-x1,2) + Math.pow(y2-y1,2));
+}
+
+function getTimeLabel(i,nTicks, scaleStart, scaleEnd){
+    let start = new Date(scaleStart);
+    let now = new Date(scaleStart + (scaleEnd-scaleStart)*(i/nTicks));
+    let end = new Date(scaleEnd);
+
+    let label = now.getFullYear();
+
+    let secondLength = 1000;
+    let minuteLength = secondLength*60;
+    let hourLength = minuteLength*60;
+    let dayLength = hourLength*24;
+    let monthLength = dayLength*30;
+    let yearLength = dayLength*365;
+
+    // years
+    if(end - start > yearLength){
+        label = `${now.getFullYear()}`;
+    }
+
+    // months
+    else if(end - start > monthLength){
+        label = `${now.getMonth()}/${now.getFullYear()}`;
+    }
+
+    // days
+    else if(end - start > dayLength){
+        label = `${now.getMonth()}/${now.getDate()}`;
+    }
+
+    // hours
+    else if(end - start > hourLength){
+        label = `${now.getHours()}h`;
+    }
+
+    // minutes
+    else if(end - start > minuteLength){
+        label = `${now.getMinutes()}m`;
+    }
+
+    // seconds
+    else if(end - start > secondLength){
+        label = `${now.getSeconds()}s`;
+    }
+
+    // milliseconds
+    else{
+        label = `${now.getMilliseconds()}ms`;
+    }
+
+    return label;
+}
+
+
+
+module.exports = {
+    "defaultColors": defaultColors,
+    "zip":zip,
+    "defaultVal": defaultVal,
+    "defaultVals": defaultVals,
+    "dist": dist,
+    "getTimeLabel": getTimeLabel
+}
+
+
+
 },{}]},{},[1]);

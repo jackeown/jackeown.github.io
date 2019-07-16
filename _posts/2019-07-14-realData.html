@@ -10,61 +10,139 @@ title: Real Data
 <h1>Real Data in easyCanvas.js</h1>
 
 
-<easy-canvas id="example1"></easy-canvas>
-<easy-canvas id="example2"></easy-canvas>
+<easy-canvas id="ec"></easy-canvas>
+<easy-canvas id="temps"></easy-canvas>
+<easy-canvas id="tempDeltas"></easy-canvas>
+<easy-canvas id="pressures"></easy-canvas>
+<easy-canvas id="superheat"></easy-canvas>
+
 
 <script>
-    function range(a,b,delta=(Math.PI*2/1000)){
-        let l = [];
-        for(let i=a;i<b;i+=delta){
-            l.push(i);
+    function transposeDict(listOfDicts){
+        let keys = Object.keys(listOfDicts[0]);
+        let dict = {};
+        for(let key of keys){
+            dict[key] = listOfDicts.map(row => row[key]);
         }
-        return l;
-    }
-
-    const data = {
-        xs: range(0,2*Math.PI),
-        sine: range(0,2*Math.PI).map(v => Math.sin(v)),
-        cosine: range(0,2*Math.PI).map(v => Math.cos(v))
-    }
-
-    const settings1 = {
-        title: "Sine and Cosine",
-        xLabel: "x",
-        yLabel: "",
-        inputs: ["xs","xs"],
-        outputs: ["sine","cosine"],
-        legendLabels: ["Sine","Cosine"],
-        tooltips: ["cosine", "sine"]
-    }
-
-    const settings2 = {
-        title: "Cosine",
-        xLabel: "x",
-        yLabel: "cosine(x)",
-        inputs: ["xs"],
-        outputs: ["cosine"],
-        legendLabels: ["Cosine"],
-        tooltips: ["sine"]
+        return dict;
     }
 
 
-    // ec1 because this is the first example canvas
-    const ec1 = document.getElementById("example1");
-    const ec2 = document.getElementById("example2");
 
-    // will contain linked axes info
+    fetch("http://192.168.0.111:4000/assets/data/data.json")
+        .then(data => data.json())
+        .then(data => {window.data = transposeDict(data)});
+
+
+
+    const ecCanvas = document.getElementById("ec");
+    const tempsCanvas = document.getElementById("temps");
+    const tempDeltasCanvas = document.getElementById("tempDeltas")
+    const pressuresCanvas = document.getElementById("pressures")
+    const superheatCanvas = document.getElementById("superheat")
+
+    let canvases = [ecCanvas,tempsCanvas,tempDeltasCanvas, pressuresCanvas, superheatCanvas];
+
+    // Link our x-axes!
     let link = {};
-    ec1.linkInfo(["xmin","xmax","ymin","ymax"], link);
-    ec2.linkInfo(["xmin","xmax","ymin","ymax"], link);
+    for(let canvas of canvases){
+        canvas.linkInfo(["xmin","xmax"], link);
+    }
 
-    ec1.drawingLoop = function(){
-        this.hotAndReady.linePlot(data, settings1);
-    }.bind(ec1);
 
-    ec2.drawingLoop = function(){
-        this.hotAndReady.linePlot(data, settings2);
-    }.bind(ec2);
+    ecCanvas.drawingLoop = function(){
+        this.hotAndReady.linePlot(window.data, {
+            title: "Electric Current",
+            xLabel: "date",
+            yLabel: "Amps",
+            inputs: ["timestamp"],
+            outputs: ["ec"],
+            legendLabels: ["Electric Current"],
+            tooltips: ["ec", "at"],
+            xAxisIsTime: true,
+        });
+    }.bind(ecCanvas);
+
+
+
+    tempsCanvas.drawingLoop = function(){
+        this.hotAndReady.linePlot(window.data, {
+            title: "Temperatures",
+            xLabel: "date",
+            yLabel: "temperature fahrenheit (F)",
+            inputs: ["timestamp", "timestamp", "timestamp"],
+            outputs: ["at","lt","vt"],
+            legendLabels: ["Ambient Temperature", "Liquid Line Temperature", "Vapor Line Temperature"],
+            tooltips: ["ec", "at","lt","vt"],
+            xAxisIsTime: true,
+            ymin:20,
+            ymax:130,
+        });
+    }.bind(tempsCanvas);
+
+
+
+    tempDeltasCanvas.drawingLoop = function(){
+        this.hotAndReady.linePlot(window.data, {
+            title: "Temperature Deltas",
+            xLabel: "date",
+            yLabel: "temperature fahrenheit (F)",
+            inputs: ["timestamp", "timestamp", "timestamp"],
+            outputs: ["at","lt","vt"],
+            legendLabels: ["Ambient Temperature", "Liquid Line Temperature", "Vapor Line Temperature"],
+            tooltips: ["ec", "at", "lt", "vt"],
+            xAxisIsTime: true,
+            ymin:-10,
+            ymax:10,
+        });
+    }.bind(tempDeltasCanvas);
+
+
+
+    pressuresCanvas.drawingLoop = function(){
+        let t2 = window.data["timestamp"][400]
+        let t1 = window.data["timestamp"][200]
+        
+        this.ctx.beginPath();
+        this.rect(t1,this.ymin,t2-t1,this.ymax-this.ymin)
+        this.ctx.fillStyle = "rgba(255,0,0,0.6)";
+        this.ctx.fill();
+        this.ctx.fillStyle = "black";
+
+        this.hotAndReady.linePlot(window.data, {
+            title: "Pressures",
+            xLabel: "date",
+            yLabel: "PSIG",
+            inputs: ["timestamp", "timestamp"],
+            outputs: ["lp","vp"],
+            legendLabels: ["Liquid Line Pressure", "Vapor Line Pressure"],
+            tooltips: ["ec", "at", "lp", "vp"],
+            xAxisIsTime: true,
+            ymin:0,
+            ymax:450,
+        });
+
+
+
+
+    }.bind(pressuresCanvas);
+
+
+
+    superheatCanvas.drawingLoop = function(){
+        this.hotAndReady.linePlot(window.data, {
+            title: "Superheat and Subcool",
+            xLabel: "date",
+            yLabel: "delta F",
+            inputs: ["timestamp", "timestamp", "timestamp"],
+            outputs: ["sh","sc","ec"],
+            legendLabels: ["Superheat", "Subcool", "Electric Current"],
+            tooltips: ["ec", "at", "sh", "sc"],
+            xAxisIsTime: true,
+            ymin:-20,
+            ymax:60,
+        });
+    }.bind(superheatCanvas);
 
 </script>
 

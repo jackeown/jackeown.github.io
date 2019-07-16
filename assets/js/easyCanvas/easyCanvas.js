@@ -1,4 +1,12 @@
-var hotAndReadyFuncs = require('./easyCanvasHotAndReady.js');
+const hotAndReadyFuncs = require('./easyCanvasHotAndReady.js');
+const helpers = require('./helpers.js');
+
+defaultColors = helpers.defaultColors;
+zip = helpers.zip;
+defaultVal = helpers.defaultVal;
+defaultVals = helpers.defaultVals;
+dist = helpers.dist;
+getTimeLabel = helpers.getTimeLabel;
 
     
 // d for domain, r for range...
@@ -42,9 +50,9 @@ class EasyCanvas extends HTMLElement {
         }.bind(this));
 
         this.canvas.addEventListener("mouseleave",function(e){
-            // this.mouseDown = false;
-            // this.mouseX = undefined;
-            // this.mouseY = undefined;
+            this.mouseDown = false;
+            this.mouseX = undefined;
+            this.mouseY = undefined;
         }.bind(this));
 
 
@@ -63,37 +71,44 @@ class EasyCanvas extends HTMLElement {
         }.bind(this)
     
         this.zoomingControl = function(e){
+            let xdist = this.xmax - this.xmin;
+            let ydist = this.ymax - this.ymin;
+          
             let sensitivity = 0.001
-            let zoomAmount = (e.deltaY*sensitivity)*Math.min(this.xmax-this.xmin,this.ymax-this.ymin);
+            let zoomAmount = (e.deltaY*sensitivity);
     
-            let px = (this.mouseX - this.xmin) / (this.xmax-this.xmin)
-            let py = (this.mouseY - this.ymin) / (this.ymax-this.ymin)
+            let px = (this.mouseX - this.xmin) / xdist
+            let py = (this.mouseY - this.ymin) / ydist
     
             // make sure the zoom makes sense and there aren't weird numerical issues.
             // also make sure we don't zoom in too far...
             if(isNaN(px) || isNaN(py) || isNaN(zoomAmount) || 
-                (zoomAmount<0 && Math.abs(zoomAmount) < 0.0000001)){
+                (zoomAmount<0 && Math.abs(zoomAmount) < 0.000001)){
                 return
             }
     
-            let aspectRatio = (this.xmax-this.xmin)/(this.ymax-this.ymin)
+            let aspectRatio = xdist / ydist;
             if(this.mouseX > this.xmin && this.mouseY > this.ymin){
+                zoomAmount *= Math.max(xdist,ydist);
                 this.xmin -= px*zoomAmount;
                 this.xmax += (1-px)*zoomAmount;
                 this.ymin -= py*zoomAmount/aspectRatio;
                 this.ymax += (1-py)*zoomAmount/aspectRatio;
             }
-            if(this.mouseY < this.ymin){
+            else if(this.mouseY < this.ymin){
+                zoomAmount *= xdist;
                 this.xmin -= px*zoomAmount;
                 this.xmax += (1-px)*zoomAmount;
             }
-            if(this.mouseX < this.xmin){
+            else if(this.mouseX < this.xmin){
+                zoomAmount *= ydist;
                 this.ymin -= py*zoomAmount;
                 this.ymax += (1-py)*zoomAmount;
             }
     
             e.preventDefault();
         }.bind(this)
+
 
 
         // panning controls
@@ -130,6 +145,11 @@ class EasyCanvas extends HTMLElement {
         // this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
         this.updateScales();
         this.renderPlot();
+        setInterval(function(){
+            if(new Date() - this.lastFrame > 1000 || this.lastFrame === undefined){
+                this.renderPlot();
+            }
+        }.bind(this),200);
 
         // bind all methods from easyCanvasHotAndReady
         this.hotAndReady = {}
@@ -254,11 +274,14 @@ class EasyCanvas extends HTMLElement {
     }
 
 
-    drawAxis(x1,y1, x2,y2, labelXOffset, labelYOffset, labelTheta, nTicks, 
-                labels=undefined, scaleStart=undefined, scaleEnd=undefined){
+    drawAxis(settings){
+        let {x1,y1,x2,y2} = settings
+        let {labelXOffset,labelYOffset,labelTheta,nTicks} = settings
+        let {labels,scaleStart,scaleEnd} = settings
+        let {isDatetime} = settings
+    
         let r = Math.sqrt(Math.pow(y2-y1,2) + Math.pow(x2-x1,2));
         let theta = Math.asin((y2-y1)/r);
-
 
         let oldLineWidth = this.ctx.lineWidth;
         this.ctx.lineWidth = 2;
@@ -282,8 +305,15 @@ class EasyCanvas extends HTMLElement {
                 this.drawLabel(labels[i-1],labelX, labelY, labelTheta);
             }
             else if(!isNaN(scaleStart) && !isNaN(scaleEnd)){
-                let label = scaleStart + (scaleEnd-scaleStart)*(i/nTicks);
-                this.drawLabel(label.toFixed(2),labelX, labelY, labelTheta);
+                let label;
+                if(isDatetime){
+                    label = helpers.getTimeLabel(i,nTicks,scaleStart,scaleEnd);
+                }
+                else{
+                    label = scaleStart + (scaleEnd-scaleStart)*(i/nTicks);
+                    label = label.toFixed(2);
+                }
+                this.drawLabel(label,labelX, labelY, labelTheta);
             }
             else{
                 console.error("drawAxis method of EasyCanvas object must be called with 'labels' or both 'scaleStart' and 'scaleEnd'");
@@ -292,33 +322,46 @@ class EasyCanvas extends HTMLElement {
         this.ctx.lineWidth = oldLineWidth;
     }
 
-    drawDefaultAxes(){
-        let xTicks = 10;
-        let yTicks = 5;
+
+
+    drawDefaultAxes(settings){
+        settings = defaultVal(settings,{});
+        let [xTicks,yTicks] = defaultVals(settings,["xTicks","yTicks"],[10,5]);
+        let [xAxisIsTime,yAxisIsTime] = defaultVals(settings,["xAxisIsTime","yAxisIsTime"],[false,false]);
 
         // x-axis
         let labelXOffset = this.scaleXInverse(-20)-this.scaleXInverse(0);
         let labelYOffset = this.scaleYInverse(60)-this.scaleYInverse(0);
-        this.drawAxis(this.xmin,this.ymin,
-                        this.xmax,this.ymin, 
-                        labelXOffset, labelYOffset,
-                        Math.PI/8,
-                        xTicks,
-                        undefined,
-                        this.xmin,
-                        this.xmax)
+        this.drawAxis({x1:this.xmin,
+                        y1: this.ymin,
+                        x2:this.xmax,
+                        y2:this.ymin, 
+                        labelXOffset:labelXOffset,
+                        labelYOffset:labelYOffset,
+                        labelTheta: Math.PI/8,
+                        nTicks: xTicks,
+                        labels: undefined,
+                        scaleStart: this.xmin,
+                        scaleEnd: this.xmax,
+                        isDatetime: xAxisIsTime
+                    })
     
         // y-axis
         labelXOffset = this.scaleXInverse(-40)-this.scaleXInverse(0);
         labelYOffset = this.scaleYInverse(30)-this.scaleYInverse(0);
-        this.drawAxis(this.xmin,this.ymin,
-                        this.xmin,this.ymax, 
-                        labelXOffset,labelYOffset,
-                        Math.PI/3,
-                        yTicks,
-                        undefined,
-                        this.ymin,
-                        this.ymax)
+        this.drawAxis({x1:this.xmin,
+                        y1: this.ymin,
+                        x2:this.xmin,
+                        y2:this.ymax, 
+                        labelXOffset:labelXOffset,
+                        labelYOffset:labelYOffset,
+                        labelTheta: Math.PI/3,
+                        nTicks: yTicks,
+                        labels: undefined,
+                        scaleStart: this.ymin,
+                        scaleEnd: this.ymax,
+                        isDatetime: yAxisIsTime
+                    })
     }
 
     drawLine(data,lineWidth=2){

@@ -2,25 +2,16 @@
 /* they will be made accessable via EasyCanvas.hotAndReady */
 
 // helpers:
-
-let defaultColors = ["red", "green","orange", "blue", "purple", "yellow"];
-
-function zip(xs,ys){
-    return xs.map((v,i)=>[v,ys[i]])
-}
-
-function defaultVal(original,def){
-    if(original === undefined){
-        return def;
-    }
-    return original;
-}
-
-function dist(x1,y1,x2,y2){
-    return Math.sqrt(Math.pow(x2-x1,2) + Math.pow(y2-y1,2));
-}
+const helpers = require('./helpers.js')
+defaultColors = helpers.defaultColors;
+zip = helpers.zip;
+defaultVal = helpers.defaultVal;
+defaultVals = helpers.defaultVals;
+dist = helpers.dist;
+getTimeLabel = helpers.getTimeLabel;
 
 
+// tools
 function drawTooltip(x,y,info){
     let padding = 20;
     let lineHeight = 20;
@@ -99,9 +90,9 @@ function drawLegend(labels, settings){
 
 function drawLegendAxesLabelsAndTitle(settings){
     let title = defaultVal(settings.title, "Untitled");
-    let xLabel = defaultVal(settings.xLabel, "input");
-    let yLabel = defaultVal(settings.yLabel, "output");
-    let legendLabels = defaultVal(settings.legendLabels, ["ys"]);
+    let xLabel = defaultVal(settings.xLabel, "x");
+    let yLabel = defaultVal(settings.yLabel, "y");
+    let legendLabels = defaultVal(settings.legendLabels, ["y"]);
     let colors = defaultVal(settings.colors, defaultColors);
 
     // draw legend
@@ -235,6 +226,10 @@ function linePlot(data, settings){
     let colors = defaultVal(settings.colors, defaultColors);
     let lineWidth = defaultVal(settings.lineWidth, 2);
     let tooltips = defaultVal(settings.tooltips, []);
+    let xTicks = defaultVal(settings.xTicks, 10);
+    let yTicks = defaultVal(settings.yTicks, 5);
+    let xAxisIsTime = defaultVal(settings.xAxisIsTime, false);
+    let yAxisIsTime = defaultVal(settings.yAxisIsTime, false);
     
     let zipped = zip(inputs,outputs);
     
@@ -257,6 +252,10 @@ function linePlot(data, settings){
     // rescale canvas if desired
     // find a better way...
     if(autoScale && !this.alreadyAutoScaledLinePlot){
+        xmin = defaultVal(settings.xmin, xmin);
+        xmax = defaultVal(settings.xmax, xmax);
+        ymin = defaultVal(settings.ymin, ymin);
+        ymax = defaultVal(settings.ymax, ymax);
         this.alreadyAutoScaledLinePlot = true;
         rescaleAxes.bind(this)(xmin,xmax,ymin,ymax);
     }
@@ -264,6 +263,15 @@ function linePlot(data, settings){
     if(tooltips.length != 0 && this.mouseX !== undefined){
         linePlotTooltip.bind(this)(data, inputs,outputs,tooltips);
     }
+
+
+    this.setAttribute("default-axes-on","false");
+    this.drawDefaultAxes({
+        xTicks: xTicks,
+        yTicks: yTicks,
+        xAxisIsTime: xAxisIsTime,
+        yAxisIsTime: yAxisIsTime
+    });
 
     // legend, plot title, and axes labels.
     drawLegendAxesLabelsAndTitle.bind(this)(settings);
@@ -283,23 +291,32 @@ function barPlot(data, settings){
     // y-axis
     let labelXOffset = this.scaleXInverse(-50) - this.scaleXInverse(0)
     let labelYOffset = this.scaleYInverse(40) - this.scaleYInverse(0)
-    this.drawAxis(0,0,
-        0,this.ymax,
-        labelXOffset,labelYOffset,
-        Math.PI/3,
-        5,
-        undefined,
-        0,this.ymax)
+    this.drawAxis({x1: 0,
+                    y1: 0,
+                    x2: 0,
+                    y2: this.ymax, 
+                    labelXOffset: labelXOffset,
+                    labelYOffset: labelYOffset,
+                    labelTheta: Math.PI/3,
+                    nTicks: 5,
+                    labels: undefined,
+                    scaleStart: 0,
+                    scaleEnd: this.ymax})
+
 
     // x-axis
     labelXOffset = this.scaleXInverse(-45) - this.scaleXInverse(0)
     labelYOffset = this.scaleYInverse(65) - this.scaleYInverse(0)
-    this.drawAxis(0,0,
-        this.xmax,0,
-        labelXOffset,labelYOffset,
-        Math.PI/10,
-        data.bars.length+1,
-        data.bars.concat(""))
+
+    this.drawAxis({x1: 0,
+                    y1: 0,
+                    x2: this.xmax,
+                    y2: 0, 
+                    labelXOffset: labelXOffset,
+                    labelYOffset: labelYOffset,
+                    labelTheta: Math.PI/10,
+                    nTicks: data.bars.length+1,
+                    labels: data.bars.concat("")})
 
 
     for(let i=0; i<data.heights.length; i++){
