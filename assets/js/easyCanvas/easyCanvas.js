@@ -261,7 +261,7 @@ class EasyCanvas extends HTMLElement {
 
 
     drawLabel(text, x, y, theta, font=undefined){
-        let oldFont = this.ctx.font;
+        this.ctx.save();
         if(font == undefined){
             this.ctx.font = "20pt arial"
         }
@@ -271,9 +271,7 @@ class EasyCanvas extends HTMLElement {
         this.ctx.translate(x,y);
         this.ctx.rotate(-theta);
         this.ctx.fillText(text,0,0);
-        this.ctx.rotate(theta);
-        this.ctx.translate(-x,-y);
-        this.ctx.font = oldFont;
+        this.ctx.restore();
     }
 
 
@@ -286,7 +284,7 @@ class EasyCanvas extends HTMLElement {
         let r = Math.sqrt(Math.pow(y2-y1,2) + Math.pow(x2-x1,2));
         let theta = Math.asin((y2-y1)/r);
 
-        let oldLineWidth = this.ctx.lineWidth;
+        this.ctx.save();
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
         this.ctx.moveTo(parseInt(this.scaleX(x1)), parseInt(this.scaleY(y1)));
@@ -322,7 +320,7 @@ class EasyCanvas extends HTMLElement {
                 console.error("drawAxis method of EasyCanvas object must be called with 'labels' or both 'scaleStart' and 'scaleEnd'");
             }
         }
-        this.ctx.lineWidth = oldLineWidth;
+        this.ctx.restore();
     }
 
 
@@ -438,5 +436,10 @@ class EasyCanvas extends HTMLElement {
     }
 }
 
-// add stuff from easyCanvasHotAndReady!
 customElements.define('easy-canvas', EasyCanvas);
+
+var link = document.createElement('link');
+link.setAttribute('rel', 'stylesheet');
+link.setAttribute('type', 'text/css');
+link.setAttribute('href', 'https://fonts.googleapis.com/css?family=Lato:100,200,300,400,500,600');
+document.head.appendChild(link);

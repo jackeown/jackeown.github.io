@@ -50,17 +50,17 @@ function drawTooltip(x,y,info){
     for(let [i, label] of labels.entries()){
         let x1 = x + padding;
         let y1 = y + padding*(i+1) + lineHeight*(i+1);
-        this.drawLabel(label[0], x1, y1,undefined,font="bold 18pt arial");
+        this.drawLabel(label[0], x1, y1,0,"bold 18pt arial");
         
         x1 += (letterWidth*label[0].length);
-        this.drawLabel(label[1],x1,y1,undefined,font="18pt arial");
+        this.drawLabel(label[1],x1,y1,0,"18pt arial");
     }
 }
 
 function drawLegend(labels, settings){
     let padding = 20;
     let lineHeight = 20;
-    let letterWidth = 14;
+    let letterWidth = 12;
     let patchSize = 20;
 
     // Rectangle 
@@ -93,7 +93,7 @@ function drawLegend(labels, settings){
         // draw text
         x1 += (patchSize + padding);
         y1 += lineHeight;
-        this.drawLabel(label.text, x1, y1);
+        this.drawLabel(label.text, x1, y1,0,"300 20pt Lato");
     }
 }
 
@@ -112,19 +112,24 @@ function drawLegendAxesLabelsAndTitle(settings){
     drawLegend.bind(this)(legendLabels);
 
     // draw title
-    let titleX = this.canvas.width/2 - (title.length/2)*32;
+    this.ctx.save();
+    this.ctx.textAlign = "center";
+
+    let titleX = this.canvas.width/2;
     let titleY = 60;
-    this.drawLabel(title, titleX,titleY, 0, "48pt arial");
+    this.drawLabel(title, titleX,titleY, 0, "300 45pt Lato");
 
     // draw x-axis label
-    let xLabelX = this.canvas.width/2 - (xLabel.length/2)*16;
+    let xLabelX = this.canvas.width/2;
     let xLabelY = this.canvas.height-20;
-    this.drawLabel(xLabel, xLabelX, xLabelY,0, "bold 24pt arial");
+    this.drawLabel(xLabel, xLabelX, xLabelY, 0, "500 24pt Lato");
 
     // draw y-axis label
     let yLabelX = 40;
-    let yLabelY = this.canvas.height/2 + (yLabel.length/2)*16;
-    this.drawLabel(yLabel, yLabelX, yLabelY,Math.PI/2, "bold 24pt arial");
+    let yLabelY = this.canvas.height/2;
+    this.drawLabel(yLabel, yLabelX, yLabelY,Math.PI/2, "500 24pt Lato");
+
+    this.ctx.restore();
 }
 
 
