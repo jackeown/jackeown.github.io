@@ -469,13 +469,22 @@ function drawTooltip(x,y,info){
     x = this.scaleX(x);
     y = this.scaleY(y);
 
-    // Draw Rectangle 
+    // find height and width
     let h = labels.length * lineHeight;
     h += padding * (labels.length+1);
     let w = Math.max(...labels.map(pair => pair[0].length + pair[1].length))*letterWidth + 2*padding;
 
+    // move tooltip up and left if necessary.
+    if(x+w > this.canvas.width){
+       x = this.canvas.width - w; 
+    }
+    if(y+h > this.canvas.height){
+        y = this.canvas.height - h;
+    }
+
+    // Draw Rectangle 
     let oldFillStyle = this.ctx.fillStyle;
-    this.ctx.fillStyle="rgba(255,255,255,0.7)";
+    this.ctx.fillStyle="rgba(255,255,255,0.75)";
     this.ctx.beginPath();
     this.ctx.rect(x, y, w, h);
     this.ctx.stroke();
@@ -575,15 +584,12 @@ function rescaleAxes(xmin,xmax,ymin,ymax){
 
 
 
-
-
-
 function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     // make sure inputs has exactly one unique element.
     if(new Set(inputs).size != 1){
         console.log("in order to have tooltips on a line plot, all inputs must be the same.");
         return false;
-    }
+    } 
 
     let xs = data[inputs[0]];
     
@@ -604,14 +610,10 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
         guess = Math.round((high+low)/2);
     }
 
-    let index;
+    let index = low;
     if(Math.abs(xs[high] - mx) < Math.abs(xs[low] - mx)){
         index = high;
     }
-    else{
-        index = low;
-    }
-
 
 
     // find closest y-coordinate
@@ -625,15 +627,6 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
         }
     }
 
-//     console.log(`
-// mx: ${mx},
-// my: ${my},
-// index: ${index},
-// xs[index]: ${xs[index]},
-// output: ${output},
-// data[output]: ${data[output]}
-// ###################################
-// `);
 
     // ensure it is within epsilon of mouse in canvas (c) coordinates.
     let cPointX = this.scaleX(xs[index]);
@@ -659,7 +652,6 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     }
     drawTooltip.bind(this)(x,y,info);
 }
-
 
 
 
@@ -705,11 +697,6 @@ function linePlot(data, settings){
         rescaleAxes.bind(this)(xmin,xmax,ymin,ymax);
     }
 
-    if(tooltips.length != 0 && this.mouseX !== undefined){
-        linePlotTooltip.bind(this)(data, inputs,outputs,tooltips);
-    }
-
-
     this.setAttribute("default-axes-on","false");
     this.drawDefaultAxes({
         xTicks: xTicks,
@@ -718,8 +705,16 @@ function linePlot(data, settings){
         yAxisIsTime: yAxisIsTime
     });
 
+
+
     // legend, plot title, and axes labels.
     drawLegendAxesLabelsAndTitle.bind(this)(settings);
+
+
+    // draw tooltips
+    if(tooltips.length != 0 && this.mouseX !== undefined){
+        linePlotTooltip.bind(this)(data, inputs,outputs,tooltips);
+    }
 }
 
 
