@@ -204,14 +204,14 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     let y = data[output][index];
     let info = {};
     for(let tooltip of tooltips){
-        if(isNaN(data[tooltip][index])){
-            info[tooltip] = data[tooltip][index].toString().slice(0,8) + "...";
+        let text = String(data[tooltip][index]);
+        if(isNaN(text)){
+            info[tooltip] = text.slice(0,8) + "...";
         }
         else{
-            info[tooltip] = data[tooltip][index].toFixed(3);
+            info[tooltip] = parseFloat(text).toFixed(3);
         }
     }
-
     drawTooltip.bind(this)(x,y,info);
 }
 

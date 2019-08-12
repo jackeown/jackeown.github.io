@@ -62,6 +62,9 @@ class EasyCanvas extends HTMLElement {
             if(this.mouseDown){
                 let dx = this.scaleXInverse(e.movementX)-this.scaleXInverse(0);
                 let dy = this.scaleYInverse(e.movementY)-this.scaleYInverse(0);
+
+                dx *= 2;
+                dy *= 2;
     
                 this.xmin -= dx;
                 this.xmax -= dx;
@@ -222,7 +225,6 @@ class EasyCanvas extends HTMLElement {
 
         
         if(this.DPIHasBeenSet && ready){
-            this.updateScales();
             // linked axes and other info maybe...
             if(this.link !== undefined){
                 for(let key of this.linkedKeys){
@@ -231,7 +233,8 @@ class EasyCanvas extends HTMLElement {
                     }
                 }
             }
-
+            
+            this.updateScales();
             this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
             if(this.defaultAxesOn){
                 this.drawDefaultAxes();
