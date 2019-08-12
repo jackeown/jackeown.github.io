@@ -804,7 +804,7 @@ module.exports = {
 //     ["linePlot",linePlot],
 //     ["barPlot", barPlot],
 //     ["histogram", barPlot]
-// ];
+// ]; 
 },{"./helpers.js":3}],3:[function(require,module,exports){
 let defaultColors = ["red", "green","orange", "blue", "purple", "yellow"];
 

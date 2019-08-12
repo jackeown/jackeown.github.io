@@ -357,4 +357,4 @@ module.exports = {
 //     ["linePlot",linePlot],
 //     ["barPlot", barPlot],
 //     ["histogram", barPlot]
-// ];
+// ]; 
