@@ -182,7 +182,8 @@ class EasyCanvas extends HTMLElement {
             this.canvas.removeEventListener("wheel",this.zoomingControl);
 
             if(newValue.toLowerCase() === "true"){
-
+                this.canvas.addEventListener("mousemove",this.panningControl);
+                this.canvas.addEventListener("wheel",this.zoomingControl);
             }
         }
     }
@@ -236,6 +237,7 @@ class EasyCanvas extends HTMLElement {
             
             this.updateScales();
             this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+            this.ctx.beginPath(); // clears any old path they may have made.
             if(this.defaultAxesOn){
                 this.drawDefaultAxes();
             }
