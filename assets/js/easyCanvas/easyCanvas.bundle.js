@@ -856,12 +856,12 @@ function getTimeLabel(i,nTicks, scaleStart, scaleEnd){
 
     // hours
     else if(end - start > hourLength){
-        label = `${now.getHours()}h`;
+        label = `${now.getHours()}h:${now.getMinutes()}m`;
     }
 
     // minutes
     else if(end - start > minuteLength){
-        label = `${now.getMinutes()}m`;
+        label = `${now.getMinutes()}m:${now.getSeconds()}s`;
     }
 
     // seconds
