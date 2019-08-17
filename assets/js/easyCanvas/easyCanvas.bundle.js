@@ -145,15 +145,10 @@ class EasyCanvas extends HTMLElement {
         this.defaultAxesOn = true;
         this.mouseDown = false; // left mouse button is not clicked in when the webpage loads...
         
-        // Constantly be redrawing the plot:
-        // this.plotInterval = setInterval(this.renderPlot.bind(this), 1000/this.framerate);
         this.updateScales();
+        
+        // Constantly be redrawing the plot:
         this.renderPlot();
-        setInterval(function(){
-            if(new Date() - this.lastFrame > 1000 || this.lastFrame === undefined){
-                this.renderPlot();
-            }
-        }.bind(this),200);
 
         // bind all methods from easyCanvasHotAndReady
         this.hotAndReady = {}
@@ -225,41 +220,42 @@ class EasyCanvas extends HTMLElement {
         let ready = (new Date() - this.lastFrame > 1000/this.framerate)
         ready = (ready || this.lastFrame === undefined)
 
-        
-        if(this.DPIHasBeenSet && ready){
-            // linked axes and other info maybe...
-            if(this.link !== undefined){
-                for(let key of this.linkedKeys){
-                    if(this.link[key] !== undefined && this.mouseX === undefined){
-                        this.setAttribute(key,this.link[key]);
+        try{
+            if(this.DPIHasBeenSet && ready){
+                // linked axes and other info maybe...
+                if(this.link !== undefined){
+                    for(let key of this.linkedKeys){
+                        if(this.link[key] !== undefined && this.mouseX === undefined){
+                            this.setAttribute(key,this.link[key]);
+                        }
                     }
                 }
-            }
-            
-            this.updateScales();
-            this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
-            this.ctx.beginPath(); // clears any old path they may have made.
-            if(this.defaultAxesOn){
-                this.drawDefaultAxes();
-            }
-            if(this.drawingLoop){
-                this.drawingLoop();
-            }
-
-            // linked axes and other info maybe...
-            if(this.link !== undefined){
-                for(let key of this.linkedKeys){
-                    if(this.mouseX !== undefined){
-                        this.link[key] = this[key];
+                
+                this.updateScales();
+                this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+                this.ctx.beginPath(); // clears any old path they may have made.
+                if(this.defaultAxesOn){
+                    this.drawDefaultAxes();
+                }
+                if(this.drawingLoop){
+                    this.drawingLoop();
+                }
+    
+                // linked axes and other info maybe...
+                if(this.link !== undefined){
+                    for(let key of this.linkedKeys){
+                        if(this.mouseX !== undefined){
+                            this.link[key] = this[key];
+                        }
                     }
                 }
+    
+                this.lastFrame = new Date();
             }
-
-            this.lastFrame = new Date();
         }
-
-
-        requestAnimationFrame(this.renderPlot.bind(this));
+        finally{
+            requestAnimationFrame(this.renderPlot.bind(this));
+        }
     }
 
 
