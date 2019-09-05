@@ -846,12 +846,12 @@ function getTimeLabel(i,nTicks, scaleStart, scaleEnd){
 
     // months
     else if(end - start > monthLength){
-        label = `${now.getMonth()}/${now.getFullYear()}`;
+        label = `${now.getMonth()+1}/${now.getFullYear()}`;
     }
 
     // days
     else if(end - start > dayLength){
-        label = `${now.getMonth()}/${now.getDate()}`;
+        label = `${now.getMonth()+1}/${now.getDate()}`;
     }
 
     // hours
