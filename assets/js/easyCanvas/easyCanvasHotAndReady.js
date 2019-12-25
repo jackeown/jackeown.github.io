@@ -3,12 +3,7 @@
 
 // helpers:
 const helpers = require('./helpers.js')
-defaultColors = helpers.defaultColors;
-zip = helpers.zip;
-defaultVal = helpers.defaultVal;
-defaultVals = helpers.defaultVals;
-dist = helpers.dist;
-getTimeLabel = helpers.getTimeLabel;
+let {defaultColors, zip, defaultVal, defaultVals, dist, getTimeLabel} = helpers;
 
 
 // tools
@@ -38,22 +33,22 @@ function drawTooltip(x,y,info){
     }
 
     // Draw Rectangle 
-    let oldFillStyle = this.ctx.fillStyle;
+    this.ctx.save();
     this.ctx.fillStyle="rgba(255,255,255,0.75)";
     this.ctx.beginPath();
     this.ctx.rect(x, y, w, h);
     this.ctx.stroke();
     this.ctx.fill();
-    this.ctx.fillStyle=oldFillStyle;
+    this.ctx.restore();
 
     // draw text for individual labels
     for(let [i, label] of labels.entries()){
         let x1 = x + padding;
         let y1 = y + padding*(i+1) + lineHeight*(i+1);
-        this.drawLabel(label[0], x1, y1,0,"bold 18pt arial");
+        this.drawLabel(label[0], x1, y1,0,"bold 18pt Lato");
         
         x1 += (letterWidth*label[0].length);
-        this.drawLabel(label[1],x1,y1,0,"18pt arial");
+        this.drawLabel(label[1],x1,y1,0,"18pt Lato");
     }
 }
 
@@ -143,19 +138,19 @@ function rescaleAxes(xmin,xmax,ymin,ymax){
 }
 
 
-
-function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
+function getLinePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     // make sure inputs has exactly one unique element.
     if(new Set(inputs).size != 1){
         console.log("in order to have tooltips on a line plot, all inputs must be the same.");
-        return false;
+        return undefined;
     } 
 
     let xs = data[inputs[0]];
-    
+
     // get closest point to mouse.
     let mx = this.mouseX;
     let my = this.mouseY;
+
     // binary search over x
     let low = 0;
     let high = xs.length-1;
@@ -180,7 +175,7 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     let output = undefined;
     let smallestDist = Infinity;
     for(let out of outputs){
-        let d = dist(xs[index],data[out][index],mx,my)
+        let d = dist(xs[index], data[out][index], mx, my)
         if(d < smallestDist){
             output = out;
             smallestDist = d;
@@ -194,10 +189,9 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     let cMouseX = this.scaleX(mx);
     let cMouseY = this.scaleY(my);
     if(dist(cPointX,cPointY,cMouseX, cMouseY) > epsilon){
-        return false;
+        return undefined;
     }
 
-    // draw tooltip info at that point.
     let x = xs[index];
     let y = data[output][index];
     let info = {};
@@ -210,8 +204,11 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
             info[tooltip] = parseFloat(text).toFixed(3);
         }
     }
-    drawTooltip.bind(this)(x,y,info);
+
+    return {x:x, y:y, info:info}
 }
+
+
 
 
 
@@ -230,21 +227,15 @@ function linePlot(data, settings){
     
     let zipped = zip(inputs,outputs);
     
-    // draw lines and find extend of data.
+    // find extend of data.
     let xmin = ymin = Infinity;
     let xmax = ymax = -Infinity;
     for(let [i,[x,y]] of zipped.entries()){
-        this.ctx.strokeStyle = colors[i%colors.length];
-        line = {xs: data[x], ys: data[y]};
-        this.drawLine(line, lineWidth);
-
-        // find extent of data
         xmin = Math.min(Math.min(...data[x]),xmin);
         xmax = Math.max(Math.max(...data[x]),xmax);
         ymin = Math.min(Math.min(...data[y]),ymin);
         ymax = Math.max(Math.max(...data[y]),ymax);
     }
-    this.ctx.strokeStyle="black";
 
     // rescale canvas if desired
     // find a better way...
@@ -257,6 +248,18 @@ function linePlot(data, settings){
         rescaleAxes.bind(this)(xmin,xmax,ymin,ymax);
     }
 
+    // draw lines
+    for(let [i, [x,y]] of zipped.entries()){
+        this.ctx.strokeStyle = colors[i%colors.length];
+        line = {xs: data[x], ys: data[y]};
+        this.drawLine(line, lineWidth);
+    }
+
+
+    this.ctx.strokeStyle="black";
+
+    // use axes information sent to linePlot and not the default
+    // axes of easyCanvas.
     this.setAttribute("default-axes-on","false");
     this.drawDefaultAxes({
         xTicks: xTicks,
@@ -273,8 +276,27 @@ function linePlot(data, settings){
 
     // draw tooltips
     if(tooltips.length != 0 && this.mouseX !== undefined){
-        linePlotTooltip.bind(this)(data, inputs,outputs,tooltips);
+        let tooltip = getLinePlotTooltip.bind(this)(data, inputs, outputs, tooltips);
+        if(tooltip != undefined){
+            let {x,y,info} = tooltip;
+            drawTooltip.bind(this)(x,y,info);
+        }
     }
+    
+    if(this.hotAndReadyEventListeners["linePlot"] === undefined){
+        function listener(){
+            let tooltip = getLinePlotTooltip.bind(this)(data, inputs, outputs, tooltips);
+            if(tooltip != undefined){
+                this.renderPlot();
+            }
+        };
+
+        this.hotAndReadyEventListeners["linePlot"] = {
+            mousemove: listener.bind(this)
+        };
+        this.canvas.addEventListener("mousemove", this.hotAndReadyEventListeners["linePlot"]["mousemove"])
+    }
+
 }
 
 

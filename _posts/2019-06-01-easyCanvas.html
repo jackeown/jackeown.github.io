@@ -21,7 +21,6 @@ title: The making of easyCanvas.js
         let x = Math.random()*0.75 + 0.15;
         let y = Math.random()*0.75 + 0.15;
         let r = Math.random()/10;
-        // let velocity = {x:0,y:0};
         let velocity = {x:(Math.random()-0.5)/20, y:(Math.random()-0.5)/20}
         circles.push({x:x,y:y,r:r,color:getRandomRGB(),velocity: velocity});
     }
@@ -85,7 +84,7 @@ title: The making of easyCanvas.js
     Here's an example of a standard line plot along with the code that produced it:
 </h1>
 
-<easy-canvas id="example1"></easy-canvas>
+<easy-canvas id="example1" framerate="0.0"></easy-canvas>
 
 <script>
     function range(a,b,delta=0.01){
@@ -109,6 +108,7 @@ title: The making of easyCanvas.js
         inputs: ["xs","xs"],
         outputs: ["sine","cosine"],
         legendLabels: ["Sine","Cosine"],
+        tooltips: ["sine", "cosine"]
     }
 
     // ec1 because this is the first example canvas
@@ -126,33 +126,7 @@ Here's the HTML:
 
 and here's the javascript:
 {% highlight javascript %}
-function range(a,b,delta=0.01){
-    let l = [];
-    for(let i=a;i<b;i+=delta){
-        l.push(i);
-    }
-    return l;
-}
 
-const data = {
-    xs: range(0,2*Math.PI), // arbitrary name
-    sine: range(0,2*Math.PI).map(v => Math.sin(v)), // arbitrary name
-    sosine: range(0,2*Math.PI).map(v => Math.cos(v)) // arbitrary name
-}
-
-const settings = {
-    title: "Sine and Cosine",
-    xLabel: "xs",
-    yLabel: "sine and cosine",
-    inputs: ["xs","xs"],
-    outputs: ["sine", "cosine"],
-    legendLabels: ["Sine","Cosine"],
-}
-
-const ec = document.getElementById("example1");
-ec.drawingLoop = function(){
-    this.hotAndReady.linePlot(data, settings);
-}.bind(ec);
 {% endhighlight %}
 
 <hr><br>

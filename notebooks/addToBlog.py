@@ -3,7 +3,7 @@
 # (with some Front Matter for jekyll)
 #
 # This script will then copy that md file along with any images created
-# into the jekyll site located at ../jekyllSite relative to where this script
+# into the jekyll site located at ../ relative to where this script
 # was run.
 
 import sys, os

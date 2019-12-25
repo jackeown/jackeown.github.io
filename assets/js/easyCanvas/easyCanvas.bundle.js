@@ -2,16 +2,11 @@
 const hotAndReadyFuncs = require('./easyCanvasHotAndReady.js');
 const helpers = require('./helpers.js');
 
-defaultColors = helpers.defaultColors;
-zip = helpers.zip;
-defaultVal = helpers.defaultVal;
-defaultVals = helpers.defaultVals;
-dist = helpers.dist;
-getTimeLabel = helpers.getTimeLabel;
+let {defaultColors, zip, defaultVal, defaultVals, dist, getTimeLabel} = helpers;
 
     
 // d for domain, r for range...
-function linearScale(d1,d2, r1, r2){
+function linearScale(d1, d2, r1, r2){
     function scale(x){
         let z = (x-d1)/(d2-d1)
         return z*(r2-r1) + r1;
@@ -29,7 +24,7 @@ class EasyCanvas extends HTMLElement {
         // Set up canvas 
         this.shadow = this.attachShadow({mode: 'open'});
         this.canvas = document.createElement("canvas");
-        this.canvas.setAttribute("style","border:1px solid black;width:100%;height:100%;touch-action:none");
+        this.canvas.setAttribute("style","border:1px solid black;width:100%;height:100%;");
 
         // update this.mouseDown boolean
         this.canvas.addEventListener("mousedown",function(e){this.mouseDown = true;}.bind(this))
@@ -71,6 +66,7 @@ class EasyCanvas extends HTMLElement {
                 this.xmax -= dx;
                 this.ymin -= dy;
                 this.ymax -= dy;
+                this.renderPlot();
             }
         }.bind(this)
     
@@ -111,6 +107,7 @@ class EasyCanvas extends HTMLElement {
             }
     
             e.preventDefault();
+            this.renderPlot();
         }.bind(this)
 
 
@@ -128,33 +125,36 @@ class EasyCanvas extends HTMLElement {
         
         // Constantly adjust DPI with possibly changing screen size
         this.DPIHasBeenSet = false;
-        this.dpiInterval = setInterval(this.fixDPI.bind(this), 200);
-        setTimeout(this.fixDPI.bind(this), 20);
+        this.dpiInterval = setInterval(this.fixDPI.bind(this), 500);
+        window.addEventListener("load", this.fixDPI.bind(this));
         
         // config
         this.framerate = 24;
         this.padding = 120;
+
         this.xmin = -100;
-        this.xmax = 100;
-        
+        this.xmax = 100;        
         this.ymin = -100;
         this.ymax = 100;
 
-        this.dpr = 2.0;
+        this.dpr = 2.0; // device pixel ratio.
         
         this.defaultAxesOn = true;
         this.mouseDown = false; // left mouse button is not clicked in when the webpage loads...
         
         this.updateScales();
-        
-        // Constantly be redrawing the plot:
-        this.renderPlot();
 
         // bind all methods from easyCanvasHotAndReady
         this.hotAndReady = {}
         for(let key of Object.keys(hotAndReadyFuncs)){
             this.hotAndReady[key] = hotAndReadyFuncs[key].bind(this);
         }
+        this.hotAndReadyEventListeners = {};
+
+
+        // Constantly be redrawing the plot at this.framerate
+        this.renderPlotLoop();
+
     }
 
 
@@ -215,46 +215,57 @@ class EasyCanvas extends HTMLElement {
         this.link = link;
     }
 
-    renderPlot(){
-        // will be false if this.lastFrame is undefined
+
+    renderPlotLoop(){
+        // will be true if this.lastFrame is undefined
         let ready = (new Date() - this.lastFrame > 1000/this.framerate)
         ready = (ready || this.lastFrame === undefined)
 
-        try{
-            if(this.DPIHasBeenSet && ready){
-                // linked axes and other info maybe...
-                if(this.link !== undefined){
-                    for(let key of this.linkedKeys){
-                        if(this.link[key] !== undefined && this.mouseX === undefined){
-                            this.setAttribute(key,this.link[key]);
-                        }
-                    }
-                }
-                
-                this.updateScales();
-                this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
-                this.ctx.beginPath(); // clears any old path they may have made.
-                if(this.defaultAxesOn){
-                    this.drawDefaultAxes();
-                }
-                if(this.drawingLoop){
-                    this.drawingLoop();
-                }
-    
-                // linked axes and other info maybe...
-                if(this.link !== undefined){
-                    for(let key of this.linkedKeys){
-                        if(this.mouseX !== undefined){
-                            this.link[key] = this[key];
-                        }
-                    }
-                }
-    
-                this.lastFrame = new Date();
+        try {
+            if(ready){
+                this.renderPlot();
             }
         }
-        finally{
-            requestAnimationFrame(this.renderPlot.bind(this));
+        finally {
+            requestAnimationFrame(this.renderPlotLoop.bind(this));
+        }
+    }
+
+    renderPlot(){
+        // linked axes and other info maybe...
+        if(this.DPIHasBeenSet){
+            if(this.link !== undefined){
+                for(let key of this.linkedKeys){
+                    if(this.link[key] !== undefined && this.mouseX === undefined){
+                        this.setAttribute(key,this.link[key]);
+                    }
+                }
+            }
+            
+            this.updateScales();
+            this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+            this.ctx.beginPath(); // clears any old path they may have made.
+            
+            if(this.drawingLoop){
+                this.drawingLoop();
+            }
+
+            // this needs to be below the drawing loop because 
+            // your drawing loop may disable the default axes. (hotAndReady does)
+            if(this.defaultAxesOn){
+                this.drawDefaultAxes();
+            }
+    
+            // linked axes and other info maybe...
+            if(this.link !== undefined){
+                for(let key of this.linkedKeys){
+                    if(this.mouseX !== undefined){
+                        this.link[key] = this[key];
+                    }
+                }
+            }
+    
+            this.lastFrame = new Date();
         }
     }
 
@@ -262,7 +273,7 @@ class EasyCanvas extends HTMLElement {
     drawLabel(text, x, y, theta, font=undefined){
         this.ctx.save();
         if(font == undefined){
-            this.ctx.font = "20pt arial"
+            this.ctx.font = "20pt Lato"
         }
         else{
             this.ctx.font = font;
@@ -364,7 +375,7 @@ class EasyCanvas extends HTMLElement {
                     })
     }
 
-    drawLine(data,lineWidth=2){
+    drawLine(data, lineWidth=2){
         let xs = data.xs.map(x => this.scaleX(x));
         let ys = data.ys.map(y => this.scaleY(y));
 
@@ -380,7 +391,7 @@ class EasyCanvas extends HTMLElement {
     }
 
     // in custom coordinates, not canvas coordinates
-    mouseInCircle(cx,cy,r){
+    mouseInCircle(cx, cy, r){
         if(this.mouseX === undefined || this.mouseY === undefined){
             return undefined;
         }
@@ -389,7 +400,7 @@ class EasyCanvas extends HTMLElement {
     }
 
     // opposite corners of a rectangle.
-    mouseInRect(x1,y1,x2,y2){
+    mouseInRect(x1, y1, x2, y2){
         if(this.mouseX === undefined || this.mouseY === undefined){
             return undefined;
         }
@@ -422,7 +433,7 @@ class EasyCanvas extends HTMLElement {
         }
     }
 
-    rect(x,y,w,h){
+    rect(x, y, w, h){
         x = this.scaleX(x);
         y = this.scaleY(y);
         w = this.scaleX(w) - this.scaleX(0);
@@ -437,6 +448,8 @@ class EasyCanvas extends HTMLElement {
 
 customElements.define('easy-canvas', EasyCanvas);
 
+
+// hack to dynamically load css for easy-canvas...
 var link = document.createElement('link');
 link.setAttribute('rel', 'stylesheet');
 link.setAttribute('type', 'text/css');
@@ -448,12 +461,7 @@ document.head.appendChild(link);
 
 // helpers:
 const helpers = require('./helpers.js')
-defaultColors = helpers.defaultColors;
-zip = helpers.zip;
-defaultVal = helpers.defaultVal;
-defaultVals = helpers.defaultVals;
-dist = helpers.dist;
-getTimeLabel = helpers.getTimeLabel;
+let {defaultColors, zip, defaultVal, defaultVals, dist, getTimeLabel} = helpers;
 
 
 // tools
@@ -483,22 +491,22 @@ function drawTooltip(x,y,info){
     }
 
     // Draw Rectangle 
-    let oldFillStyle = this.ctx.fillStyle;
+    this.ctx.save();
     this.ctx.fillStyle="rgba(255,255,255,0.75)";
     this.ctx.beginPath();
     this.ctx.rect(x, y, w, h);
     this.ctx.stroke();
     this.ctx.fill();
-    this.ctx.fillStyle=oldFillStyle;
+    this.ctx.restore();
 
     // draw text for individual labels
     for(let [i, label] of labels.entries()){
         let x1 = x + padding;
         let y1 = y + padding*(i+1) + lineHeight*(i+1);
-        this.drawLabel(label[0], x1, y1,0,"bold 18pt arial");
+        this.drawLabel(label[0], x1, y1,0,"bold 18pt Lato");
         
         x1 += (letterWidth*label[0].length);
-        this.drawLabel(label[1],x1,y1,0,"18pt arial");
+        this.drawLabel(label[1],x1,y1,0,"18pt Lato");
     }
 }
 
@@ -588,19 +596,19 @@ function rescaleAxes(xmin,xmax,ymin,ymax){
 }
 
 
-
-function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
+function getLinePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     // make sure inputs has exactly one unique element.
     if(new Set(inputs).size != 1){
         console.log("in order to have tooltips on a line plot, all inputs must be the same.");
-        return false;
+        return undefined;
     } 
 
     let xs = data[inputs[0]];
-    
+
     // get closest point to mouse.
     let mx = this.mouseX;
     let my = this.mouseY;
+
     // binary search over x
     let low = 0;
     let high = xs.length-1;
@@ -625,7 +633,7 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     let output = undefined;
     let smallestDist = Infinity;
     for(let out of outputs){
-        let d = dist(xs[index],data[out][index],mx,my)
+        let d = dist(xs[index], data[out][index], mx, my)
         if(d < smallestDist){
             output = out;
             smallestDist = d;
@@ -639,10 +647,9 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
     let cMouseX = this.scaleX(mx);
     let cMouseY = this.scaleY(my);
     if(dist(cPointX,cPointY,cMouseX, cMouseY) > epsilon){
-        return false;
+        return undefined;
     }
 
-    // draw tooltip info at that point.
     let x = xs[index];
     let y = data[output][index];
     let info = {};
@@ -655,8 +662,11 @@ function linePlotTooltip(data, inputs, outputs, tooltips, epsilon=100){
             info[tooltip] = parseFloat(text).toFixed(3);
         }
     }
-    drawTooltip.bind(this)(x,y,info);
+
+    return {x:x, y:y, info:info}
 }
+
+
 
 
 
@@ -675,21 +685,15 @@ function linePlot(data, settings){
     
     let zipped = zip(inputs,outputs);
     
-    // draw lines and find extend of data.
+    // find extend of data.
     let xmin = ymin = Infinity;
     let xmax = ymax = -Infinity;
     for(let [i,[x,y]] of zipped.entries()){
-        this.ctx.strokeStyle = colors[i%colors.length];
-        line = {xs: data[x], ys: data[y]};
-        this.drawLine(line, lineWidth);
-
-        // find extent of data
         xmin = Math.min(Math.min(...data[x]),xmin);
         xmax = Math.max(Math.max(...data[x]),xmax);
         ymin = Math.min(Math.min(...data[y]),ymin);
         ymax = Math.max(Math.max(...data[y]),ymax);
     }
-    this.ctx.strokeStyle="black";
 
     // rescale canvas if desired
     // find a better way...
@@ -702,6 +706,18 @@ function linePlot(data, settings){
         rescaleAxes.bind(this)(xmin,xmax,ymin,ymax);
     }
 
+    // draw lines
+    for(let [i, [x,y]] of zipped.entries()){
+        this.ctx.strokeStyle = colors[i%colors.length];
+        line = {xs: data[x], ys: data[y]};
+        this.drawLine(line, lineWidth);
+    }
+
+
+    this.ctx.strokeStyle="black";
+
+    // use axes information sent to linePlot and not the default
+    // axes of easyCanvas.
     this.setAttribute("default-axes-on","false");
     this.drawDefaultAxes({
         xTicks: xTicks,
@@ -718,8 +734,27 @@ function linePlot(data, settings){
 
     // draw tooltips
     if(tooltips.length != 0 && this.mouseX !== undefined){
-        linePlotTooltip.bind(this)(data, inputs,outputs,tooltips);
+        let tooltip = getLinePlotTooltip.bind(this)(data, inputs, outputs, tooltips);
+        if(tooltip != undefined){
+            let {x,y,info} = tooltip;
+            drawTooltip.bind(this)(x,y,info);
+        }
     }
+    
+    if(this.hotAndReadyEventListeners["linePlot"] === undefined){
+        function listener(){
+            let tooltip = getLinePlotTooltip.bind(this)(data, inputs, outputs, tooltips);
+            if(tooltip != undefined){
+                this.renderPlot();
+            }
+        };
+
+        this.hotAndReadyEventListeners["linePlot"] = {
+            mousemove: listener.bind(this)
+        };
+        this.canvas.addEventListener("mousemove", this.hotAndReadyEventListeners["linePlot"]["mousemove"])
+    }
+
 }
 
 
