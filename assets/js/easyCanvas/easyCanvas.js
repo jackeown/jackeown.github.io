@@ -14,7 +14,7 @@ function linearScale(d1, d2, r1, r2){
 }
 
 class EasyCanvas extends HTMLElement {
-    static get observedAttributes(){ return ["xmin", "xmax", "ymin", "ymax", "framerate", "padding", "default-axes-on","controls"];}
+    static get observedAttributes(){ return ["xmin", "xmax", "ymin", "ymax", "framerate", "paddingX", "paddingY", "default-axes-on","controls"];}
     
     constructor() {
         // Always call super first in constructor
@@ -32,12 +32,14 @@ class EasyCanvas extends HTMLElement {
         // update mouseX and mouseY locations
         this.canvas.addEventListener("mousemove",function(e){
             // get size of padding in data units.
-            let px = Math.abs(this.scaleXInverse(this.padding) - this.scaleXInverse(0));
-            let py = Math.abs(this.scaleYInverse(this.padding) - this.scaleYInverse(0));
+            let padXPixels = (this.paddingX/100)*this.canvas.width;
+            let padYPixels = (this.paddingY/100)*this.canvas.height;
+            let px = Math.abs(this.scaleXInverse(padXPixels) - this.scaleXInverse(0));
+            let py = Math.abs(this.scaleYInverse(padYPixels) - this.scaleYInverse(0));
 
             // make scales which are slightly different from this.scaleXInverse and this.scaleYInverse
-            let sx = linearScale(0,this.canvas.width, this.xmin-px, this.xmax+px)
-            let sy = linearScale(0,this.canvas.height, this.ymax+py, this.ymin-py)
+            let sx = linearScale(0, this.canvas.width, this.xmin-px, this.xmax+px)
+            let sy = linearScale(0, this.canvas.height, this.ymax+py, this.ymin-py)
 
             this.mouseX = sx(e.offsetX*this.dpr)
             this.mouseY = sy(e.offsetY*this.dpr)
@@ -128,8 +130,9 @@ class EasyCanvas extends HTMLElement {
         window.addEventListener("load", this.fixDPI.bind(this));
         
         // config
-        this.framerate = 24;
-        this.padding = 120;
+        this.framerate = 30;
+        this.paddingX = 10;
+        this.paddingY = 16;
 
         this.xmin = -100;
         this.xmax = 100;        
@@ -162,7 +165,7 @@ class EasyCanvas extends HTMLElement {
             console.log(`custom element attribute "${name}" has changed from "${oldValue}" to "${newValue}"`);
         
         // simple numeric
-        if(["xmin", "xmax", "ymin", "ymax", "padding", "framerate"].includes(name)){
+        if(["xmin", "xmax", "ymin", "ymax", "paddingX", "paddingY", "framerate"].includes(name)){
             this[name] = +newValue;
             this.updateScales();
         }
@@ -184,10 +187,15 @@ class EasyCanvas extends HTMLElement {
     }
 
     updateScales(){
-        this.scaleX = linearScale(this.xmin, this.xmax, this.padding, this.canvas.width-this.padding);
-        this.scaleY = linearScale(this.ymin, this.ymax, this.canvas.height-this.padding, this.padding);
-        this.scaleXInverse = linearScale(this.padding, this.canvas.width-this.padding, this.xmin, this.xmax);
-        this.scaleYInverse = linearScale(this.canvas.height-this.padding, this.padding, this.ymin, this.ymax);
+        let w = this.canvas.width;
+        let h = this.canvas.height;
+        let padXPixels = (this.paddingX/100)*w;
+        let padYPixels = (this.paddingY/100)*h;
+
+        this.scaleX = linearScale(this.xmin, this.xmax, padXPixels, w - padXPixels);
+        this.scaleY = linearScale(this.ymin, this.ymax, h - padYPixels, padYPixels);
+        this.scaleXInverse = linearScale(padXPixels, w - padXPixels, this.xmin, this.xmax);
+        this.scaleYInverse = linearScale(h - padYPixels, padYPixels, this.ymin, this.ymax);
     }
 
 
@@ -206,6 +214,10 @@ class EasyCanvas extends HTMLElement {
             this.canvas.width = style_width*this.dpr;
             this.DPIHasBeenSet = true;
         }
+
+        this.fontSizeScalar = (this.canvas.width+this.canvas.height) / 1500;
+
+        this.renderPlot();
     }
 
 
@@ -248,6 +260,8 @@ class EasyCanvas extends HTMLElement {
             if(this.drawingLoop){
                 this.drawingLoop();
             }
+            this.drawLabel({text:`${this.canvas.width} x ${this.canvas.height}`, x:0, y:30});
+
 
             // this needs to be below the drawing loop because 
             // your drawing loop may disable the default axes. (hotAndReady does)
@@ -269,17 +283,21 @@ class EasyCanvas extends HTMLElement {
     }
 
 
-    drawLabel(text, x, y, theta, font=undefined){
+    drawLabel(settings){
+        settings["theta"] = defaultVal(settings["theta"], 0);
+        settings["font"] = defaultVal(settings["font"], "20px Lato");
+        settings["textAlign"] = defaultVal(settings["textAlign"], "left");
+        settings["textBaseline"] = defaultVal(settings["textBaseline"], "alphabetic")
+
         this.ctx.save();
-        if(font == undefined){
-            this.ctx.font = "20pt Lato"
-        }
-        else{
-            this.ctx.font = font;
-        }
-        this.ctx.translate(x,y);
-        this.ctx.rotate(-theta);
-        this.ctx.fillText(text,0,0);
+
+        this.ctx.textBaseline = settings.textBaseline;
+        this.ctx.textAlign = settings.textAlign;
+        this.ctx.font = settings.font;
+        this.ctx.translate(settings.x, settings.y);
+        this.ctx.rotate(-settings.theta);
+        this.ctx.fillText(settings.text,0,0);
+
         this.ctx.restore();
     }
 
@@ -311,8 +329,16 @@ class EasyCanvas extends HTMLElement {
             // labelXOffset and labelYOffset are in user coordinates (not canvas coordinates)
             let labelX = this.scaleX(this.scaleXInverse(x)+labelXOffset);
             let labelY = this.scaleY(this.scaleYInverse(y)+labelYOffset);
+            let labelSettings = {
+                x: labelX, 
+                y: labelY, 
+                theta: labelTheta, 
+                textAlign: "center",
+                font: `${this.fontSizeScalar*20}px Lato`
+            };
             if(labels){
-                this.drawLabel(labels[i-1],labelX, labelY, labelTheta);
+                labelSettings.text = labels[i-1];
+                this.drawLabel(labelSettings);
             }
             else if(!isNaN(scaleStart) && !isNaN(scaleEnd)){
                 let label;
@@ -323,7 +349,8 @@ class EasyCanvas extends HTMLElement {
                     label = scaleStart + (scaleEnd-scaleStart)*(i/nTicks);
                     label = label.toFixed(2);
                 }
-                this.drawLabel(label,labelX, labelY, labelTheta);
+                labelSettings.text = label;
+                this.drawLabel(labelSettings);
             }
             else{
                 console.error("drawAxis method of EasyCanvas object must be called with 'labels' or both 'scaleStart' and 'scaleEnd'");
@@ -340,38 +367,38 @@ class EasyCanvas extends HTMLElement {
         let [xAxisIsTime,yAxisIsTime] = defaultVals(settings,["xAxisIsTime","yAxisIsTime"],[false,false]);
 
         // x-axis
-        let labelXOffset = this.scaleXInverse(-20)-this.scaleXInverse(0);
-        let labelYOffset = this.scaleYInverse(60)-this.scaleYInverse(0);
-        this.drawAxis({x1:this.xmin,
-                        y1: this.ymin,
-                        x2:this.xmax,
-                        y2:this.ymin, 
-                        labelXOffset:labelXOffset,
-                        labelYOffset:labelYOffset,
-                        labelTheta: Math.PI/8,
-                        nTicks: xTicks,
-                        labels: undefined,
-                        scaleStart: this.xmin,
-                        scaleEnd: this.xmax,
-                        isDatetime: xAxisIsTime
-                    })
+        let labelYOffset = this.scaleYInverse(30*this.fontSizeScalar)-this.scaleYInverse(0);
+        this.drawAxis({
+            x1:this.xmin,
+            y1: this.ymin,
+            x2:this.xmax,
+            y2:this.ymin, 
+            labelXOffset:0,
+            labelYOffset:labelYOffset,
+            labelTheta: Math.PI/8,
+            nTicks: xTicks,
+            labels: undefined,
+            scaleStart: this.xmin,
+            scaleEnd: this.xmax,
+            isDatetime: xAxisIsTime
+        })
     
         // y-axis
-        labelXOffset = this.scaleXInverse(-40)-this.scaleXInverse(0);
-        labelYOffset = this.scaleYInverse(30)-this.scaleYInverse(0);
-        this.drawAxis({x1:this.xmin,
-                        y1: this.ymin,
-                        x2:this.xmin,
-                        y2:this.ymax, 
-                        labelXOffset:labelXOffset,
-                        labelYOffset:labelYOffset,
-                        labelTheta: Math.PI/3,
-                        nTicks: yTicks,
-                        labels: undefined,
-                        scaleStart: this.ymin,
-                        scaleEnd: this.ymax,
-                        isDatetime: yAxisIsTime
-                    })
+        let labelXOffset = this.scaleXInverse(-20*this.fontSizeScalar)-this.scaleXInverse(0);
+        this.drawAxis({
+            x1:this.xmin,
+            y1: this.ymin,
+            x2:this.xmin,
+            y2:this.ymax, 
+            labelXOffset:labelXOffset,
+            labelYOffset:0,
+            labelTheta: Math.PI/3,
+            nTicks: yTicks,
+            labels: undefined,
+            scaleStart: this.ymin,
+            scaleEnd: this.ymax,
+            isDatetime: yAxisIsTime
+        })
     }
 
     drawLine(data, lineWidth=2){

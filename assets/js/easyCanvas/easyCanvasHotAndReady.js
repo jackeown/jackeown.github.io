@@ -8,9 +8,9 @@ let {defaultColors, zip, defaultVal, defaultVals, dist, getTimeLabel} = helpers;
 
 // tools
 function drawTooltip(x,y,info){
-    let padding = 20;
-    let lineHeight = 20;
-    let letterWidth = 12;
+    let padding = 10;
+    let lineHeight = this.fontSizeScalar*22;
+    let letterWidth = this.fontSizeScalar*10;
 
     let keys = Object.keys(info);
     let values = Object.values(info);
@@ -45,18 +45,25 @@ function drawTooltip(x,y,info){
     for(let [i, label] of labels.entries()){
         let x1 = x + padding;
         let y1 = y + padding*(i+1) + lineHeight*(i+1);
-        this.drawLabel(label[0], x1, y1,0,"bold 18pt Lato");
         
-        x1 += (letterWidth*label[0].length);
-        this.drawLabel(label[1],x1,y1,0,"18pt Lato");
+        let labelSettings = {x: x1, y: y1, textBaseline: "bottom"}
+
+        labelSettings.text = label[0];
+        labelSettings.font = `bold ${this.fontSizeScalar*20}px Lato`;
+        this.drawLabel(labelSettings);
+        
+        labelSettings.x += (letterWidth*label[0].length);
+        labelSettings.text = label[1];
+        labelSettings.font = `${this.fontSizeScalar*20}px Lato`;
+        this.drawLabel(labelSettings);
     }
 }
 
 function drawLegend(labels, settings){
-    let padding = 20;
-    let lineHeight = 20;
-    let letterWidth = 12;
-    let patchSize = 20;
+    let padding = 10*this.fontSizeScalar;
+    let lineHeight = this.fontSizeScalar*20;
+    let letterWidth = this.fontSizeScalar*10;
+    let patchSize = this.fontSizeScalar*20;
 
     // Rectangle 
     let h = labels.length * lineHeight;
@@ -88,7 +95,7 @@ function drawLegend(labels, settings){
         // draw text
         x1 += (patchSize + padding);
         y1 += lineHeight;
-        this.drawLabel(label.text, x1, y1,0,"300 20pt Lato");
+        this.drawLabel({text: label.text, x: x1, y: y1, font: `300 ${this.fontSizeScalar*20}px Lato`, textBaseline: "bottom"});
     }
 }
 
@@ -107,24 +114,19 @@ function drawLegendAxesLabelsAndTitle(settings){
     drawLegend.bind(this)(legendLabels);
 
     // draw title
-    this.ctx.save();
-    this.ctx.textAlign = "center";
-
     let titleX = this.canvas.width/2;
-    let titleY = 60;
-    this.drawLabel(title, titleX,titleY, 0, "300 45pt Lato");
+    let titleY = 60*this.fontSizeScalar;
+    this.drawLabel({text: title, x: titleX, y: titleY, font: `300 ${this.fontSizeScalar*60}px Lato`, textAlign: "center"});
 
     // draw x-axis label
     let xLabelX = this.canvas.width/2;
-    let xLabelY = this.canvas.height-20;
-    this.drawLabel(xLabel, xLabelX, xLabelY, 0, "500 24pt Lato");
+    let xLabelY = this.canvas.height-(8*this.fontSizeScalar);
+    this.drawLabel({text: xLabel, x: xLabelX, y: xLabelY, font: `500 ${this.fontSizeScalar*27}px Lato`, textAlign: "center"});
 
     // draw y-axis label
-    let yLabelX = 40;
+    let yLabelX = 30*this.fontSizeScalar;
     let yLabelY = this.canvas.height/2;
-    this.drawLabel(yLabel, yLabelX, yLabelY,Math.PI/2, "500 24pt Lato");
-
-    this.ctx.restore();
+    this.drawLabel({text: yLabel, x: yLabelX, y: yLabelY, theta: Math.PI/2, font: `500 ${this.fontSizeScalar*27}px Lato`, textAlign: "center"});
 }
 
 
@@ -220,8 +222,8 @@ function linePlot(data, settings){
     let colors = defaultVal(settings.colors, defaultColors);
     let lineWidth = defaultVal(settings.lineWidth, 2);
     let tooltips = defaultVal(settings.tooltips, []);
-    let xTicks = defaultVal(settings.xTicks, 10);
-    let yTicks = defaultVal(settings.yTicks, 5);
+    let xTicks = defaultVal(settings.xTicks, parseInt(10*this.fontSizeScalar));
+    let yTicks = defaultVal(settings.yTicks, parseInt(5*this.fontSizeScalar));
     let xAxisIsTime = defaultVal(settings.xAxisIsTime, false);
     let yAxisIsTime = defaultVal(settings.yAxisIsTime, false);
     
@@ -311,15 +313,14 @@ function barPlot(data, settings){
     }
 
     // y-axis
-    let labelXOffset = this.scaleXInverse(-50) - this.scaleXInverse(0)
-    let labelYOffset = this.scaleYInverse(40) - this.scaleYInverse(0)
+    let labelXOffset = this.scaleXInverse(-15*this.fontSizeScalar) - this.scaleXInverse(0)
     this.drawAxis({x1: 0,
                     y1: 0,
                     x2: 0,
                     y2: this.ymax, 
                     labelXOffset: labelXOffset,
-                    labelYOffset: labelYOffset,
-                    labelTheta: Math.PI/3,
+                    labelYOffset: 0,
+                    labelTheta: 2*Math.PI/5,
                     nTicks: 5,
                     labels: undefined,
                     scaleStart: 0,
@@ -327,16 +328,15 @@ function barPlot(data, settings){
 
 
     // x-axis
-    labelXOffset = this.scaleXInverse(-45) - this.scaleXInverse(0)
-    labelYOffset = this.scaleYInverse(65) - this.scaleYInverse(0)
+    labelYOffset = this.scaleYInverse(30*this.fontSizeScalar) - this.scaleYInverse(0)
 
     this.drawAxis({x1: 0,
                     y1: 0,
                     x2: this.xmax,
                     y2: 0, 
-                    labelXOffset: labelXOffset,
+                    labelXOffset: 0,
                     labelYOffset: labelYOffset,
-                    labelTheta: Math.PI/10,
+                    labelTheta: Math.PI/15,
                     nTicks: data.bars.length+1,
                     labels: data.bars.concat("")})
 

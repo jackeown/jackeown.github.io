@@ -6,7 +6,7 @@ title: The making of easyCanvas.js
 
 <script src="/assets/js/easyCanvas/easyCanvas.bundle.js"></script>
 
-<div id="plotContainer" style="width:100%; height:500px;">
+<div id="plotContainer" style="width:100%;height:600px; margin:auto;">
     <easy-canvas id="myPlot" ymin="0" ymax="1" xmin="0" xmax="1" default-axes-on="true" framerate="60"></easy-canvas>
 </div>
 
@@ -30,9 +30,9 @@ title: The making of easyCanvas.js
 
 
     demoCanvas.drawingLoop = function(){
+        this.ctx.save();
         for(let c of circles){
-            let x,y,r;
-            ({x,y,r} = c)
+            let {x,y,r} = c
             this.ctx.strokeStyle = c.color;
             this.ctx.fillStyle = c.color;
             this.ctx.beginPath();
@@ -57,9 +57,7 @@ title: The making of easyCanvas.js
                 c.velocity.y = -Math.abs(c.velocity.y);
             }
         }
-        this.ctx.strokeStyle="black";
-        this.ctx.fillStyle="black";
-        this.ctx.lineWidth=1;
+        this.ctx.restore();
     }.bind(demoCanvas);
 </script>
 

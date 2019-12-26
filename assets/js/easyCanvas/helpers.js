@@ -73,6 +73,15 @@ function getTimeLabel(i,nTicks, scaleStart, scaleEnd){
 
 
 
+
+// BEGIN MOBILE STUFF ///////////////////////////////
+
+
+
+// END MOBILE STUFF /////////////////////////////////
+
+
+
 module.exports = {
     "defaultColors": defaultColors,
     "zip":zip,
