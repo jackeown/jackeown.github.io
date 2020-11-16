@@ -6,6 +6,10 @@ title: The making of easyCanvas.js
 
 <script src="/assets/js/easyCanvas/easyCanvas.bundle.js"></script>
 
+<div id="logs">
+    logs
+</div>
+
 <div id="plotContainer" style="width:100%;height:600px; margin:auto;">
     <easy-canvas id="myPlot" ymin="0" ymax="1" xmin="0" xmax="1" default-axes-on="true" framerate="60"></easy-canvas>
 </div>
@@ -31,32 +35,39 @@ title: The making of easyCanvas.js
 
     demoCanvas.drawingLoop = function(){
         this.ctx.save();
-        for(let c of circles){
-            let {x,y,r} = c
-            this.ctx.strokeStyle = c.color;
-            this.ctx.fillStyle = c.color;
-            this.ctx.beginPath();
-            this.arc(x,y,r,0,2*Math.PI, true);
-            this.ctx.closePath();
-            if(this.mouseInCircle(x,y,r)){
-                this.ctx.fill();
-            }
-            this.ctx.stroke();
-            c.x += c.velocity.x;
-            c.y += c.velocity.y;
-            if(c.x < 0){
-                c.velocity.x = Math.abs(c.velocity.x);
-            }
-            else if(c.x > 1){
-                c.velocity.x = -Math.abs(c.velocity.x);
-            }
-            else if(c.y < 0){
-                c.velocity.y = Math.abs(c.velocity.y);
-            }
-            else if(c.y > 1){
-                c.velocity.y = -Math.abs(c.velocity.y);
-            }
-        }
+        this.ctx.beginPath();
+        this.rect(
+            0.1, 0.1, 0.8, 0.8
+        );
+        this.ctx.stroke();
+        this.ctx.fill();
+        this.ctx.closePath();
+        // for(let c of circles){
+        //     let {x,y,r} = c
+        //     this.ctx.strokeStyle = c.color;
+        //     this.ctx.fillStyle = c.color;
+        //     this.ctx.beginPath();
+        //     this.arc(x,y,r,0,2*Math.PI, true);
+        //     this.ctx.closePath();
+        //     if(this.mouseInCircle(x,y,r)){
+        //         this.ctx.fill();
+        //     }
+        //     this.ctx.stroke();
+        //     c.x += c.velocity.x;
+        //     c.y += c.velocity.y;
+        //     if(c.x < 0){
+        //         c.velocity.x = Math.abs(c.velocity.x);
+        //     }
+        //     else if(c.x > 1){
+        //         c.velocity.x = -Math.abs(c.velocity.x);
+        //     }
+        //     else if(c.y < 0){
+        //         c.velocity.y = Math.abs(c.velocity.y);
+        //     }
+        //     else if(c.y > 1){
+        //         c.velocity.y = -Math.abs(c.velocity.y);
+        //     }
+        // }
         this.ctx.restore();
     }.bind(demoCanvas);
 </script>

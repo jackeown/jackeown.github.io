@@ -60,10 +60,10 @@ function drawTooltip(x,y,info){
 }
 
 function drawLegend(labels, settings){
-    let padding = 10*this.fontSizeScalar;
+    let padding = this.fontSizeScalar*10;
     let lineHeight = this.fontSizeScalar*20;
-    let letterWidth = this.fontSizeScalar*10;
-    let patchSize = this.fontSizeScalar*20;
+    let letterWidth = this.fontSizeScalar*9;
+    let patchSize = this.fontSizeScalar*15;
 
     // Rectangle 
     let h = labels.length * lineHeight;
