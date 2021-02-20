@@ -28,7 +28,6 @@ title: Real Data
     }
 
 
-
     fetch("https://jackeown.github.io/assets/data/data.json")
         .then(data => data.json())
         .then(data => {window.data = transposeDict(data)});
