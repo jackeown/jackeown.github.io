@@ -1,0 +1,140 @@
+---
+layout: default
+author: Jack
+title: Luck vs Hard Work
+usemathjax: true
+---
+
+<script src="https://cdn.jsdelivr.net/gh/jackeown/easyCanvas/easyCanvas.bundle.js"></script>
+
+
+<h1>Luck vs Hard Word</h1>
+
+
+<p>
+    Is your status in life determined by the whims of fate and your current position?
+    Or do you only have yourself to blame/credit for your failures/successes?
+    I often think about this whenever I hear some billionaire talk about how they pulled themselves up by their bootstraps.
+    I also think about this whenever I hear someone making excuses for themselves.
+    Tonight, this topic once again came into my mind while watching this clip from the Joe Rogan podcast:
+</p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/8oDN8uf_tn8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+<p>
+    I thought, "I wonder if Joe Rogan realizes the tremendous luck that it took to become the world's largest
+    podcaster." I really enjoy much of Joe Rogan's content and think that he is refreshingly willing to disagree with his guests.
+    He seems to lean conservative when talking to his liberal guests and seems to lean liberal when talking to his conservative guests.
+    This is what I want to see from a podcast!
+    I believe that his hard work is <em>very</em> important to his success.
+    In fact, I would even go as far to say that his success would be nearly impossible without hard work.
+    That being said, his level of success is also nearly impossible without tremendous luck.
+</p>
+
+<p>
+    Following the theme of hard work, I put together this cool plot to illustrate what I mean ;).
+    I'd like to propose the following model of success that admittedly is <em>very</em> simplistic, but which 
+    demonstrates some true dynamics of success. 
+    
+    <ol>
+        <li>Each person, \(p_n\) individually has some amount of hard work \(w(p_n)\) and some amount of luck \(l(p_n)\)</li>
+        <li>The success of a person, \(s(p_n) = l(p_n) + w(p_n)\)</li>
+        <li>Hard work and luck are Gaussian random variables from which individual people are sampled.</li>
+    </ol>
+
+    In the following plot, hard work and luck are equally important (their standard deviations are equal).
+    The luck Gaussian has a zero mean, but the hard work Gaussian has a positive mean because most people
+    don't try to actively sabotage themselves. 
+    
+    Each circle represents one person and the amount of blue and red in a circle 
+    correspond to how much work and luck respectively that person has.
+</p>
+
+<easy-canvas id="equal"></easy-canvas>
+
+<em>
+    Note: You can zoom along the X-axis specifically by scrolling with your mouse hovered above the X-axis.
+</em>
+
+
+
+<script>
+
+    function gaussian(mu, sigma){
+        function pdf(x){
+            let norm = 1/(Math.sqrt(2*Math.PI)*sigma);
+            return norm * Math.exp(-0.5*Math.pow((x-mu)/sigma, 2))
+        }
+
+        return pdf;
+    }
+
+    function randn(mu, sigma) {
+        var u = 0, v = 0;
+        while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+        while(v === 0) v = Math.random();
+        let x = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+        return (x * sigma) + mu;
+    }
+
+
+    function plotPerson(person, canvas){
+        canvas.ctx.save();
+        canvas.ctx.beginPath();
+        let red = Math.round(person.luck*255);
+        let blue = Math.round(person.work*255);
+        canvas.ctx.fillStyle=`rgba(${red}, 0, ${blue}, 0.05)`;
+        let x = canvas.scaleX(person.luck + person.work);
+        let y = canvas.scaleY(0.08);
+        canvas.ctx.arc(x,y, 60, 0, 2*Math.PI);
+        canvas.ctx.fill();
+        canvas.ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        canvas.ctx.stroke();
+        canvas.ctx.restore();
+    }
+
+
+    let equal = document.querySelector("#equal");
+    let xs = [];
+    for(let x=-5; x <= 8; x += 0.1){xs.push(x);}
+
+    let equal_wpdf = gaussian(1,1);
+    let equal_lpdf = gaussian(0,1);
+
+    let equalData = {
+        "x": xs,
+        "w_density": xs.map(equal_wpdf),
+        "l_density": xs.map(equal_lpdf),
+    }
+
+    let equalPeople = [];
+    for(let n=0; n<300; n++){
+        equalPeople.push({
+            'work': randn(1,1),
+            'luck': randn(0,1)
+        });
+    }
+
+    equal.drawingLoop = function(){
+        this.hotAndReady.linePlot(equalData, {
+            title: "Success when Equally Important",
+            xLabel: "Success",
+            yLabel: "Probability Density",
+            inputs: ["x", "x"],
+            outputs: ["w_density", "l_density"],
+            legendLabels: ["Hard Work", "Luck"],
+            tooltips: ["w_density", "l_density"],
+            colors: ["blue","red"],
+            xAxisIsTime: false,
+        });
+
+        for(let person of equalPeople){
+            plotPerson(person, this);
+        }
+
+    }.bind(equal);
+
+
+</script>
+
+
