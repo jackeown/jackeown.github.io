@@ -42,13 +42,13 @@ occupied is the same regardless.
 </p>
 
 
-\(n\):
+<span class="label-n"></span> 
 <input id="n" type="range" min="1" max="100" value="10" step="1" oninput="updateNFamous()">
 
-\(k\):
+<span class="label-k"></span>
 <input id="k" type="range" min="1" max="50000" step="20" oninput="updateNFamous()">
 
-\(p\):
+<span class="label-p"></span>
 <input id="p" type="range" min="1" max="8000000000" step="1000000" oninput="updateNFamous()">
 
 Number of \(n\)-famous people:
@@ -59,6 +59,7 @@ Number of \(n\)-famous people:
 
 
 <script>
+    updateNFamous();
 
     function gaussian(mu, sigma){
         function pdf(x){
@@ -88,6 +89,13 @@ Number of \(n\)-famous people:
         let p = document.getElementById("p").value;
         let fame = document.getElementById("fame");
         fame.value = Math.round(fameFormula(n, k, p));
+
+        let labelN = document.querySelector(".label-n");
+        let labelK = document.querySelector(".label-k");
+        let labelP = document.querySelector(".label-p");
+        labelN.innerHTML = `n = ${n}`;
+        labelK.innerHTML = `k = ${k}`;
+        labelP.innerHTML = `p = ${p}`;
     }
 
 </script>
