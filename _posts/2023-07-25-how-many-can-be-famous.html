@@ -83,27 +83,30 @@ Number of \(n\)-famous people:
         return (100*k*p)/(n*p);
     }
 
+    function formatWithCommas(s){
+
+        // if s is a number, convert to string
+        if(typeof s === "number"){
+            s = s.toString();
+        }
+
+        return s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
     function updateNFamous(){
         let n = document.getElementById("n").value;
         let k = document.getElementById("k").value;
         let p = document.getElementById("p").value;
         let fame = document.getElementById("fame");
-        
-
-        let s = `${Math.round(fameFormula(n, k, p))}`;
-        
-        // formatted with commas.
-        fame.innerHTML = s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-        // explanation:
-        // https://stackoverflow.com/questions/2901102/how-to-print-a-number-with-commas-as-thousands-separators-in-javascript
-
+        fame.innerHTML = formatWithCommas(`${Math.round(fameFormula(n, k, p))}`);;
 
         let labelN = document.querySelector(".label-n");
         let labelK = document.querySelector(".label-k");
         let labelP = document.querySelector(".label-p");
-        labelN.innerHTML = `n = ${n}`;
-        labelK.innerHTML = `k = ${k}`;
-        labelP.innerHTML = `p = ${p}`;
+        
+        labelN.innerHTML = `n = ${formatWithCommas(n)}`;
+        labelK.innerHTML = `k = ${formatWithCommas(k)}`;
+        labelP.innerHTML = `p = ${formatWithCommas(p)}`;
     }
 
 </script>
