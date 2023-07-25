@@ -25,10 +25,11 @@ usemathjax: true
 
 <p>
 The number of people in a population of size \(p\) that can be \(n\)-famous I hereby with as the following formula:
-$$ fame(n,k,p)=\dfrac{100kp}{np} $$
+$$ fame(n,k,p)=\dfrac{kp}{np/100} = \dfrac{k}{n/100}$$
 
+Interestingly the population size drops out of the formula, so the max number of \(n\)-famous people is independent of the population size.
 This can be thought of as each person having \(k\) "slots" in their brain for people they can know.
-In total, a population of size \(p\) then has $kp$ slots altogether.
+In total, a population of size \(p\) then has \(kp\) slots altogether.
 Each person who is \(n\)-famous takes up at least \(\frac{np}{100}\) of these slots.
 The maximum number of \(n\)-famous people is achieved by assuming that each \(n\)-famous person takes up <em>exactly</em>
 \(\frac{np}{100}\) slots. It doesn't matter if the audiences of two \(n\)-famous people are disjoint or not, because the total number of slots
@@ -43,13 +44,13 @@ occupied is the same regardless.
 
 
 <span class="label-n"></span><br>
-<input id="n" type="range" min="1" max="100" value="90" step="1" oninput="updateNFamous()" style="width:80%"><br>
+<input id="n" type="range" min="1" max="100" value="90" step="1" oninput="updateNFamous()" style="width:90%"><br>
 
 <span class="label-k"></span><br>
-<input id="k" type="range" min="1" max="50000" step="10" value="20000" oninput="updateNFamous()" style="width:80%"><br>
+<input id="k" type="range" min="1" max="50000" step="10" value="20000" oninput="updateNFamous()" style="width:90%"><br>
 
 <span class="label-p"></span><br>
-<input id="p" type="range" min="1" max="8000000000" step="100000" value="8000000000" oninput="updateNFamous()" style="width:80%"><br>
+<input id="p" type="range" min="1" max="8000000000" step="100000" value="8000000000" oninput="updateNFamous()" style="width:90%"><br>
 
 Number of \(n\)-famous people:
 <span id="fame">
