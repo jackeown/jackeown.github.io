@@ -29,9 +29,9 @@ $$ fame(n,k,p)=\dfrac{100kp}{np} $$
 
 This can be thought of as each person having \(k\) "slots" in their brain for people they can know.
 In total, a population of size \(p\) then has $kp$ slots altogether.
-Each person who is \(n\)-famous takes up at least $\frac{np}{100}$ of these slots.
+Each person who is \(n\)-famous takes up at least \(\frac{np}{100}\) of these slots.
 The maximum number of \(n\)-famous people is achieved by assuming that each \(n\)-famous person takes up <em>exactly</em>
-$\frac{np}{100}$ slots. It doesn't matter if the audiences of two \(n\)-famous people are disjoint or not, because the total number of slots
+\(\frac{np}{100}\) slots. It doesn't matter if the audiences of two \(n\)-famous people are disjoint or not, because the total number of slots
 occupied is the same regardless.
 
 </p>
@@ -43,13 +43,13 @@ occupied is the same regardless.
 
 
 \(n\):
-<input id="n" type="range" min="1" max="100" value="10" step="1" action="updateNFamous">
+<input id="n" type="range" min="1" max="100" value="10" step="1" oninput="updateNFamous()">
 
 \(k\):
-<input id="k" type="range" min="1" max="50000" step="20" action="updateNFamous">
+<input id="k" type="range" min="1" max="50000" step="20" oninput="updateNFamous()">
 
 \(p\):
-<input id="p" type="range" min="1" max="8000000000" step="1000000" action="updateNFamous">
+<input id="p" type="range" min="1" max="8000000000" step="1000000" oninput="updateNFamous()">
 
 Number of \(n\)-famous people:
 <input type="text" id="fame" value="">
