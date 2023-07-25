@@ -17,41 +17,41 @@ usemathjax: true
     In order to answer this question, you first have to define what it means to be famous.
     I think a good and flexible definition is that a <em>large number</em> of people <em>know you</em>.
     Unfortunately this raises the followup questions of "How large of a number?" and "What counts as knowing someone?".    
-    Let's call people $n$-famous if they are known by at least $n$% of the people in a given population.
-    Let's also put an upper-limit, $k$, on the number of people each person can <em>know</em> (by whatever definition you choose for "knowing" someone).
-    Interestingly, $k$ and a population size is all it takes to put an upper-bound on how many people can be $n$-famous.
+    Let's call people \(n\)-famous if they are known by at least \(n\)% of the people in a given population.
+    Let's also put an upper-limit, \(k\), on the number of people each person can <em>know</em> (by whatever definition you choose for "knowing" someone).
+    Interestingly, \(k\) and a population size is all it takes to put an upper-bound on how many people can be \(n\)-famous.
 </p>
 
 
 <p>
-The number of people in a population of size $p$ that can be $n$-famous I hereby with as the following formula:
+The number of people in a population of size \(p\) that can be \(n\)-famous I hereby with as the following formula:
 $$ fame(n,k,p)=\dfrac{100kp}{np} $$
 
-This can be thought of as each person having $k$ "slots" in their brain for people they can know.
-In total, a population of size $p$ then has $kp$ slots altogether.
-Each person who is $n$-famous takes up at least $\frac{np}{100}$ of these slots.
-The maximum number of $n$-famous people is achieved by assuming that each $n$-famous person takes up <em>exactly</em>
-$\frac{np}{100}$ slots. It doesn't matter if the audiences of two $n$-famous people are disjoint or not, because the total number of slots
+This can be thought of as each person having \(k\) "slots" in their brain for people they can know.
+In total, a population of size \(p\) then has $kp$ slots altogether.
+Each person who is \(n\)-famous takes up at least $\frac{np}{100}$ of these slots.
+The maximum number of \(n\)-famous people is achieved by assuming that each \(n\)-famous person takes up <em>exactly</em>
+$\frac{np}{100}$ slots. It doesn't matter if the audiences of two \(n\)-famous people are disjoint or not, because the total number of slots
 occupied is the same regardless.
 
 </p>
 
 <p>
     Here's a calculator you can use to play around with the formula:
-    In the sliders below, $n$ ranges from 1 to 100, $k$ ranges from 1 to 50,000, and $p$ ranges from 1 to 8 billion.
+    In the sliders below, \(1\leq n\leq 100\), \(1\leq k\leq 50000\), and \(1\leq p\leq 8 billion\).
 </p>
 
 
-$n$:
+\(n\):
 <input id="n" type="range" min="1" max="100" value="10" step="1" action="updateNFamous">
 
-$k$:
+\(k\):
 <input id="k" type="range" min="1" max="50000" step="20" action="updateNFamous">
 
-$p$:
+\(p\):
 <input id="p" type="range" min="1" max="8000000000" step="1000000" action="updateNFamous">
 
-Number of $n$-famous people:
+Number of \(n\)-famous people:
 <input type="text" id="fame" value="">
 
 
