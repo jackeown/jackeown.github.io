@@ -52,7 +52,7 @@ occupied is the same regardless.
 <input id="p" type="range" min="1" max="8000000000" step="100000" value="8000000000" oninput="updateNFamous()"><br>
 
 Number of \(n\)-famous people:
-<input type="text" id="fame" value="">
+<span id="fame">
 
 
 
@@ -88,7 +88,15 @@ Number of \(n\)-famous people:
         let k = document.getElementById("k").value;
         let p = document.getElementById("p").value;
         let fame = document.getElementById("fame");
-        fame.value = Math.round(fameFormula(n, k, p));
+        
+
+        let s = `${Math.round(fameFormula(n, k, p))}`;
+        
+        // formatted with commas.
+        fame.innerHTML = s.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        // explanation:
+        // https://stackoverflow.com/questions/2901102/how-to-print-a-number-with-commas-as-thousands-separators-in-javascript
+
 
         let labelN = document.querySelector(".label-n");
         let labelK = document.querySelector(".label-k");
